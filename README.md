@@ -1,5 +1,7 @@
 # mindmapio-mcp
 
+> **Tip:** Give this README to your agent and ask it to install the MCP.
+
 Give your AI agent a place to build and keep what it learns. Connect it to [mindmap.io](https://mindmap.io) and it turns research, plans, and conversations into a real map you can open, grow, and share. Your agent reads existing maps, adds and edits nodes, runs prompts on them, and fans any topic out into follow-up questions, all through your own mindmap.io account.
 
 Two ways to set it up:
