@@ -1,7 +1,7 @@
 ---
 name: mindmapio
 description: >
-  Drive Mindmap.io maps directly over its HTTP node API (ADR 0021): list and
+  Drive Mindmap.io maps directly over its HTTP node API: list and
   read maps, build node subtrees with client-minted ids, and run the generative
   node operations (submit, auto-expand, retry, interrupt). Use when the user
   wants to create or grow a mindmap.io map, run prompts on nodes, fan a node out

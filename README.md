@@ -1,30 +1,25 @@
 # mindmapio-mcp
 
-Drive [Mindmap.io](https://mindmap.io) maps from an AI agent. This package wraps
-the Mindmap.io unified node API so external agents can read maps and
-nodes, build subtrees with client-minted ids, and run the generative node
-operations: submit, auto-expand, retry, and interrupt.
+Give your AI agent a place to build and keep what it learns. Connect it to [mindmap.io](https://mindmap.io) and it turns research, plans, and conversations into a real map you can open, grow, and share. Your agent reads existing maps, adds and edits nodes, runs prompts on them, and fans any topic out into follow-up questions, all through your own mindmap.io account.
 
-Two ways to use it:
+Two ways to set it up:
 
-1. **MCP server** — run `npx -y mindmapio-mcp` and point any MCP client at it.
-2. **Agent skill** — drive the HTTP API directly, no MCP client required. See
-   [`skill/SKILL.md`](skill/SKILL.md).
+1. **MCP server.** One line in your MCP client config (Claude Desktop, Cursor, and other MCP clients).
+2. **Agent skill.** Install it with `npx skills` so your agent works with mindmap.io directly, no MCP client needed.
 
 ## Get a token
 
-Every call authenticates with a personal access token (PAT):
+Every call uses a personal access token from your account.
 
-1. Open Mindmap.io → settings → API access.
-2. Generate a token and copy it (you only see it once).
-3. Export it as `MINDMAP_API_TOKEN`, or paste it into your MCP client config.
+1. Open mindmap.io, go to settings, then API access.
+2. Generate a token and copy it. You only see it once.
+3. Save it as `MINDMAP_API_TOKEN`, or paste it into your MCP client config.
 
-The token acts as its user. Regenerating it immediately revokes the old one.
+The token acts as you. Regenerate it any time and the old one stops working instantly.
 
-## Install path 1: MCP server
+## Option 1: MCP server
 
-The server speaks MCP over stdio. Add this to your MCP client config (Claude
-Desktop, Cursor, etc.) — `npx` fetches and runs the published package:
+Add this to your MCP client config. `npx` fetches and runs the package for you:
 
 ```json
 {
@@ -40,52 +35,52 @@ Desktop, Cursor, etc.) — `npx` fetches and runs the published package:
 }
 ```
 
-### Configuration
+### Settings
 
-| Env var | Required | Default | Description |
+| Env var | Required | Default | What it does |
 | --- | --- | --- | --- |
-| `MINDMAP_API_TOKEN` | yes | — | Personal access token, sent as `Authorization: Bearer <token>`. Never logged. |
+| `MINDMAP_API_TOKEN` | yes | — | Your personal access token. Sent as `Authorization: Bearer <token>`. Never logged. |
 | `MINDMAP_API_BASE_URL` | no | `https://mindmap.io` | API base URL. |
 
-### Tools
+### What your agent can do
 
-One tool per API primitive:
+| Tool | What it does |
+| --- | --- |
+| `list_maps` | List your maps, newest first. |
+| `get_map` | Read a whole map and its node tree. |
+| `get_node` | Read one node. |
+| `get_subtree` | Read a node and its children, as deep as you want. |
+| `create_map` | Start a new map. |
+| `delete_map` | Delete a map and everything in it. |
+| `create_node` | Add a node under a parent. |
+| `update_node` | Edit a node's text, note, type, or model. |
+| `delete_node` | Remove a node and its children. |
+| `submit_node` | Run a node through the model and get the answer back. |
+| `auto_expand` | Turn a node into follow-up questions for your agent to run. |
+| `retry_node` | Re-run a node that failed. |
+| `interrupt_node` | Stop a node that is still running. |
 
-| Tool | API | Notes |
-| --- | --- | --- |
-| `list_maps` | `GET /api/mindmaps` | Metadata only, newest first. |
-| `get_map` | `GET /api/mindmaps/{id}` | Full map including the node tree. |
-| `get_node` | `GET /api/mindmaps/{mapId}/nodes/{nodeId}` | One node; its `children` lists child ids. |
-| `get_subtree` | `GET .../nodes/{nodeId}/subtree?depth` | Nested tree; omit `depth` for the full subtree, `0` for just the node. |
-| `create_map` | `POST /api/mindmaps` | Pass an initial `data` tree with a root node. |
-| `delete_map` | `DELETE /api/mindmaps/{id}` | Cascades to all nodes. |
-| `create_node` | `POST /api/mindmaps/{mapId}/nodes` | `nodeId` optional; a uuid is minted when omitted. |
-| `update_node` | `PATCH .../nodes/{nodeId}` | Structural only; no LLM call, no metering. |
-| `delete_node` | `DELETE .../nodes/{nodeId}` | Cascades to descendants; root cannot be deleted. |
-| `submit_node` | `POST .../nodes/{nodeId}/submit` | Runs the LLM; blocks on ancestors; metered. |
-| `auto_expand` | `POST .../nodes/{nodeId}/auto-expand` | Queues 1–4 follow-up children; submit each yourself. |
-| `retry_node` | `POST .../nodes/{nodeId}/retry?force` | Re-run a failed node; `force` to re-expand. |
-| `interrupt_node` | `POST .../nodes/{nodeId}/interrupt` | Stop an in-flight node; idempotent; not metered. |
+`create_node` mints a node id for you when you leave it out, so your agent can lay out a whole branch in one pass.
 
-`create_node` accepts an optional `nodeId`; a uuid is minted when omitted, so an
-agent can reference ids it chose while building a subtree before they persist.
+## Option 2: agent skill
 
-## Install path 2: agent skill
+Install the skill with one command:
 
-Prefer to call the HTTP API directly without an MCP client? Install the bundled
-skill at [`skill/SKILL.md`](skill/SKILL.md). It teaches an agent the same
-primitives as curl calls, including the agent-drives-recursion pattern for
-auto-expand (call `auto_expand`, then `submit` each returned child).
+```bash
+npx skills add MohGanji/mindmapio-mcp
+```
+
+This works with Claude Code and other agents that support skills (browse them at [skills.sh](https://www.skills.sh)). It teaches your agent the same actions over plain HTTP, including how to expand a node into follow-up questions and run each one. You can also read it directly at [`skills/mindmapio/SKILL.md`](skills/mindmapio/SKILL.md).
+
+Set your token first:
 
 ```bash
 export MINDMAP_API_TOKEN="<your personal access token>"
-export MINDMAP_API_BASE_URL="https://mindmap.io"   # optional, the default
 ```
 
 ## Hello world
 
-Create a map, add a prompt node, run it, and read it back. With the MCP server,
-call the tools in order; the arguments for each are:
+Create a map, add a question, run it, and read the answer. With the MCP server, call the tools in order:
 
 ```jsonc
 // 1. Create a map with a root node.
@@ -93,11 +88,11 @@ create_map   { "title": "Hello", "data": { "rootId": "root",
                "nodes": { "root": { "id": "root", "text": "Hello", "children": [] } } } }
 //   -> { "id": "MAP_ID" }
 
-// 2. Create a prompt node under the root.
+// 2. Add a question under the root.
 create_node  { "mapId": "MAP_ID", "nodeId": "q1", "parentId": "root",
                "text": "Say hi in one word.", "nodeType": "prompt" }
 
-// 3. Run the node; the call blocks until the answer is ready.
+// 3. Run it. The call waits until the answer is ready.
 submit_node  { "mapId": "MAP_ID", "nodeId": "q1" }
 //   -> { "nodeId": "q1", "status": "complete", "messages": [ ... ] }
 
@@ -105,22 +100,19 @@ submit_node  { "mapId": "MAP_ID", "nodeId": "q1" }
 get_node     { "mapId": "MAP_ID", "nodeId": "q1" }
 ```
 
-See [`skill/SKILL.md`](skill/SKILL.md) for the curl equivalents.
+The skill at [`skills/mindmapio/SKILL.md`](skills/mindmapio/SKILL.md) shows the same flow as curl commands.
 
-## Security
+## Keep your token safe
 
-- **Never commit your token.** Keep it in your MCP client config or an
-  environment variable, not in source control.
-- The token is sent only as the `Authorization` bearer header and is never
-  logged: config and API errors carry no secret.
-- Treat the PAT like a password. If it leaks, regenerate it in settings, which
-  revokes the old one immediately.
+- Never commit your token. Keep it in your MCP client config or an environment variable.
+- It is sent only as the `Authorization` header and is never logged. Config and error messages carry no secret.
+- Treat it like a password. If it leaks, regenerate it in settings and the old one stops working right away.
 
 ## Develop
 
 ```bash
 npm install
-npm test        # vitest against a mocked HTTP layer (no live backend needed)
+npm test        # vitest against a mocked HTTP layer, no live backend needed
 npm run build   # tsc -> dist/
 ```
 

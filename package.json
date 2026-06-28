@@ -1,14 +1,14 @@
 {
   "name": "mindmapio-mcp",
   "version": "0.1.0",
-  "description": "MCP server wrapping the Mindmap.io unified node API so external agents can drive maps.",
+  "description": "MCP server and agent skill for driving mindmap.io maps from an AI agent.",
   "type": "module",
   "bin": {
     "mindmapio-mcp": "dist/server.js"
   },
   "files": [
     "dist",
-    "skill",
+    "skills",
     "README.md",
     "LICENSE"
   ],
