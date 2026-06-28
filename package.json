@@ -1,0 +1,48 @@
+{
+  "name": "mindmapio-mcp",
+  "version": "0.1.0",
+  "description": "MCP server wrapping the Mindmap.io unified node API so external agents can drive maps.",
+  "type": "module",
+  "bin": {
+    "mindmapio-mcp": "dist/server.js"
+  },
+  "files": [
+    "dist",
+    "skill",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MohGanji/mindmapio-mcp.git"
+  },
+  "homepage": "https://github.com/MohGanji/mindmapio-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/MohGanji/mindmapio-mcp/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "mindmap",
+    "mindmap.io",
+    "ai-agents"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  }
+}
