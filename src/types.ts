@@ -45,6 +45,18 @@ export interface SuccessResponse {
   success: boolean;
 }
 
+/** A single text part within a message (Vercel AI SDK UIMessage shape). */
+export interface MessagePart {
+  type: "text";
+  text: string;
+}
+
+/** Node content as a UIMessage: a role plus its ordered text parts. */
+export interface Message {
+  role: string;
+  parts: MessagePart[];
+}
+
 export interface CreateMapRequest {
   title?: string;
   kind?: string;
@@ -58,7 +70,7 @@ export interface CreateMapResponse {
 }
 
 export interface CreateNodeData {
-  text?: string;
+  messages?: Message[];
   note?: string;
   node_type?: string;
 }
@@ -71,7 +83,7 @@ export interface CreateNodeRequest {
 }
 
 export interface UpdateNodeRequest {
-  text?: string;
+  messages?: Message[];
   note?: string;
   node_type?: string;
   is_collapsed?: boolean;

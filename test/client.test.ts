@@ -155,7 +155,11 @@ describe("node writes", () => {
   it("createNode POSTs /api/mindmaps/{mapId}/nodes with the body", async () => {
     const node = { id: "n1", children: [] };
     mockNext(jsonResponse(node, 201));
-    const body = { nodeId: "n1", parentId: "r", data: { text: "hi" } };
+    const body = {
+      nodeId: "n1",
+      parentId: "r",
+      data: { messages: [{ role: "user", parts: [{ type: "text", text: "hi" }] }] },
+    };
     const result = await makeClient().createNode("m1", body);
     expect(captured[0].method).toBe("POST");
     expect(captured[0].url).toBe("https://api.example.test/api/mindmaps/m1/nodes");
@@ -165,7 +169,10 @@ describe("node writes", () => {
 
   it("updateNode PATCHes the node path with the body", async () => {
     mockNext(jsonResponse({ success: true }));
-    const body = { text: "updated", is_collapsed: true };
+    const body = {
+      messages: [{ role: "user", parts: [{ type: "text", text: "updated" }] }],
+      is_collapsed: true,
+    };
     const result = await makeClient().updateNode("m1", "n1", body);
     expect(captured[0].method).toBe("PATCH");
     expect(captured[0].url).toBe("https://api.example.test/api/mindmaps/m1/nodes/n1");

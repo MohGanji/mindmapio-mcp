@@ -27,6 +27,27 @@ function compact<T extends Record<string, unknown>>(obj: T): Partial<T> {
 const mapId = z.string().describe("The map id.");
 const nodeId = z.string().describe("The node id (unprefixed, as returned in node trees).");
 
+/**
+ * Node content as a UIMessage array (Vercel AI SDK shape). Content is supplied
+ * as messages, typically a single user turn whose text parts carry the prompt,
+ * data, or note body.
+ */
+const messages = z
+  .array(
+    z.object({
+      role: z.string().describe("The message role, usually 'user'."),
+      parts: z
+        .array(
+          z.object({
+            type: z.literal("text").describe("The part type; use 'text'."),
+            text: z.string().describe("The text content of this part."),
+          }),
+        )
+        .describe("Ordered content parts for this message."),
+    }),
+  )
+  .describe("Node content as a UIMessage array (e.g. one user turn with text parts).");
+
 export function buildTools(): ToolDef[] {
   return [
     {
@@ -107,12 +128,14 @@ export function buildTools(): ToolDef[] {
           .nullable()
           .optional()
           .describe("Insert index among the parent's children; appended when omitted."),
-        text: z.string().optional().describe("Initial node text."),
+        messages: messages
+          .optional()
+          .describe("Initial node content as a UIMessage array (a data/note node's body is a user message too)."),
         note: z.string().optional().describe("Initial node note."),
         nodeType: z.string().optional().describe("The node's type (e.g. prompt, data, expand)."),
       },
       handler: (client, args) => {
-        const data = compact({ text: args.text, note: args.note, node_type: args.nodeType });
+        const data = compact({ messages: args.messages, note: args.note, node_type: args.nodeType });
         const body = compact({
           nodeId: args.nodeId ?? randomUUID(),
           parentId: args.parentId,
@@ -125,11 +148,11 @@ export function buildTools(): ToolDef[] {
     {
       name: "update_node",
       description:
-        "Apply a structural update to a node (text, note, type, collapsed flag, model). No LLM call, no metering.",
+        "Apply a structural update to a node (content, note, type, collapsed flag, model). No LLM call, no metering.",
       inputSchema: {
         mapId,
         nodeId,
-        text: z.string().optional(),
+        messages: messages.optional().describe("Replace the node's content as a UIMessage array."),
         note: z.string().optional(),
         nodeType: z.string().optional().describe("Set or rotate the node's type."),
         isCollapsed: z.boolean().optional(),
@@ -141,7 +164,7 @@ export function buildTools(): ToolDef[] {
           args.mapId,
           args.nodeId,
           compact({
-            text: args.text,
+            messages: args.messages,
             note: args.note,
             node_type: args.nodeType,
             is_collapsed: args.isCollapsed,

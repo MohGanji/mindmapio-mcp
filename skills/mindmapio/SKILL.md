@@ -51,6 +51,11 @@ mm() { curl -sS -H "Authorization: Bearer $MINDMAP_API_TOKEN" \
 IDs are unprefixed everywhere. You mint node ids client-side, so you can
 reference a node id you chose before it is persisted.
 
+Node content is sent as `messages`: a UIMessage array (Vercel AI SDK shape).
+Each message is `{role, parts}` and each part is `{type: "text", text}`. A
+node's body — a prompt, a data node, a note's source turn — is a single `user`
+message with one or more text parts.
+
 ### Read
 
 **List maps** — `GET /api/mindmaps` → array of `{id, title, kind, created_at, updated_at}`, newest first.
@@ -86,25 +91,49 @@ mm /api/mindmaps -X POST -d '{
   "title": "My research map",
   "data": {
     "rootId": "root",
-    "nodes": { "root": { "id": "root", "text": "Topic", "children": [] } }
+    "nodes": {
+      "root": {
+        "id": "root",
+        "messages": [{ "role": "user", "parts": [{ "type": "text", "text": "Topic" }] }],
+        "children": []
+      }
+    }
   }
 }'
 ```
 
-**Create a node** — `POST /api/mindmaps/{mapId}/nodes` with `{nodeId, parentId, position?, data?}`. `nodeId` must be unique within the map; mint a uuid yourself. `data` may carry `{text, note, node_type}`. The node is born structural (a draft); running it is a separate generative call. → `201` full node.
+**Create a node** — `POST /api/mindmaps/{mapId}/nodes` with `{nodeId, parentId, position?, data?}`. `nodeId` must be unique within the map; mint a uuid yourself. `data` may carry `{messages, note, node_type}`, where `messages` is the node's content as a UIMessage array. The node is born structural (a draft); running it is a separate generative call. → `201` full node.
 
 ```bash
 mm /api/mindmaps/MAP_ID/nodes -X POST -d '{
   "nodeId": "q1",
   "parentId": "root",
-  "data": { "text": "What is X?", "node_type": "prompt" }
+  "data": {
+    "messages": [{ "role": "user", "parts": [{ "type": "text", "text": "What is X?" }] }],
+    "node_type": "prompt"
+  }
 }'
 ```
 
-**Update a node** — `PATCH /api/mindmaps/{mapId}/nodes/{nodeId}` with any subset of `{text, note, node_type, is_collapsed, model_provider, model_id}`. Pure tree mutation, no LLM call, no metering. → `200 {success}`.
+A data or note node carries its body the same way — a `user` message in `messages`:
 
 ```bash
-mm /api/mindmaps/MAP_ID/nodes/q1 -X PATCH -d '{"text": "What is X, precisely?"}'
+mm /api/mindmaps/MAP_ID/nodes -X POST -d '{
+  "nodeId": "d1",
+  "parentId": "root",
+  "data": {
+    "messages": [{ "role": "user", "parts": [{ "type": "text", "text": "Reference notes for the branch." }] }],
+    "node_type": "data"
+  }
+}'
+```
+
+**Update a node** — `PATCH /api/mindmaps/{mapId}/nodes/{nodeId}` with any subset of `{messages, note, node_type, is_collapsed, model_provider, model_id}`. Send `messages` to replace the node's content. Pure tree mutation, no LLM call, no metering. → `200 {success}`.
+
+```bash
+mm /api/mindmaps/MAP_ID/nodes/q1 -X PATCH -d '{
+  "messages": [{ "role": "user", "parts": [{ "type": "text", "text": "What is X, precisely?" }] }]
+}'
 ```
 
 **Delete a node** — `DELETE /api/mindmaps/{mapId}/nodes/{nodeId}`. Cascades to descendants and reindexes siblings. The root cannot be deleted. → `200 {success}`.
@@ -181,9 +210,9 @@ On `429`, stop generating and surface the CTA rather than retrying blindly.
 
 ```bash
 # create a map with a root
-MAP=$(mm /api/mindmaps -X POST -d '{"title":"Hello","data":{"rootId":"root","nodes":{"root":{"id":"root","text":"Hello","children":[]}}}}' | jq -r '.id')
+MAP=$(mm /api/mindmaps -X POST -d '{"title":"Hello","data":{"rootId":"root","nodes":{"root":{"id":"root","messages":[{"role":"user","parts":[{"type":"text","text":"Hello"}]}],"children":[]}}}}' | jq -r '.id')
 # add a prompt node under the root
-mm /api/mindmaps/$MAP/nodes -X POST -d '{"nodeId":"q1","parentId":"root","data":{"text":"Say hi in one word.","node_type":"prompt"}}'
+mm /api/mindmaps/$MAP/nodes -X POST -d '{"nodeId":"q1","parentId":"root","data":{"messages":[{"role":"user","parts":[{"type":"text","text":"Say hi in one word."}]}],"node_type":"prompt"}}'
 # run it and read the answer back
 mm /api/mindmaps/$MAP/nodes/q1/submit -X POST -d '{}'
 ```

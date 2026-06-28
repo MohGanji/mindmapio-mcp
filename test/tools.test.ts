@@ -113,7 +113,7 @@ describe("create_node wiring", () => {
       nodeId: "chosen",
       parentId: "r",
       position: 1,
-      text: "hi",
+      messages: [{ role: "user", parts: [{ type: "text", text: "hi" }] }],
       note: "n",
       nodeType: "prompt",
     });
@@ -121,7 +121,11 @@ describe("create_node wiring", () => {
       nodeId: "chosen",
       parentId: "r",
       position: 1,
-      data: { text: "hi", note: "n", node_type: "prompt" },
+      data: {
+        messages: [{ role: "user", parts: [{ type: "text", text: "hi" }] }],
+        note: "n",
+        node_type: "prompt",
+      },
     });
   });
 
@@ -149,7 +153,7 @@ describe("update_node wiring", () => {
     await tool("update_node").handler(client, {
       mapId: "m1",
       nodeId: "n1",
-      text: "t",
+      messages: [{ role: "user", parts: [{ type: "text", text: "t" }] }],
       note: "no",
       nodeType: "data",
       isCollapsed: true,
@@ -157,7 +161,7 @@ describe("update_node wiring", () => {
       modelId: "claude",
     });
     expect(client.updateNode).toHaveBeenCalledWith("m1", "n1", {
-      text: "t",
+      messages: [{ role: "user", parts: [{ type: "text", text: "t" }] }],
       note: "no",
       node_type: "data",
       is_collapsed: true,
@@ -168,8 +172,9 @@ describe("update_node wiring", () => {
 
   it("only sends the fields that were provided", async () => {
     const client = fakeClient();
-    await tool("update_node").handler(client, { mapId: "m1", nodeId: "n1", text: "only" });
-    expect(client.updateNode).toHaveBeenCalledWith("m1", "n1", { text: "only" });
+    const messages = [{ role: "user", parts: [{ type: "text", text: "only" }] }];
+    await tool("update_node").handler(client, { mapId: "m1", nodeId: "n1", messages });
+    expect(client.updateNode).toHaveBeenCalledWith("m1", "n1", { messages });
   });
 });
 

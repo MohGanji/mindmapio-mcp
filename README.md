@@ -63,7 +63,7 @@ The first run builds from source, so it takes a few extra seconds. Later runs ar
 | `create_map` | Start a new map. |
 | `delete_map` | Delete a map and everything in it. |
 | `create_node` | Add a node under a parent. |
-| `update_node` | Edit a node's text, note, type, or model. |
+| `update_node` | Edit a node's content, note, type, or model. |
 | `delete_node` | Remove a node and its children. |
 | `submit_node` | Run a node through the model and get the answer back. |
 | `auto_expand` | Turn a node into follow-up questions for your agent to run. |
@@ -90,17 +90,19 @@ export MINDMAP_API_TOKEN="<your personal access token>"
 
 ## Hello world
 
-Create a map, add a question, run it, and read the answer. With the MCP server, call the tools in order:
+Create a map, add a question, run it, and read the answer. Node content is sent as `messages`, a UIMessage array (`{ role, parts: [{ type: "text", text }] }`). With the MCP server, call the tools in order:
 
 ```jsonc
 // 1. Create a map with a root node.
-create_map   { "title": "Hello", "data": { "rootId": "root",
-               "nodes": { "root": { "id": "root", "text": "Hello", "children": [] } } } }
+create_map   { "title": "Hello", "data": { "rootId": "root", "nodes": { "root": {
+               "id": "root",
+               "messages": [{ "role": "user", "parts": [{ "type": "text", "text": "Hello" }] }],
+               "children": [] } } } }
 //   -> { "id": "MAP_ID" }
 
 // 2. Add a question under the root.
-create_node  { "mapId": "MAP_ID", "nodeId": "q1", "parentId": "root",
-               "text": "Say hi in one word.", "nodeType": "prompt" }
+create_node  { "mapId": "MAP_ID", "nodeId": "q1", "parentId": "root", "nodeType": "prompt",
+               "messages": [{ "role": "user", "parts": [{ "type": "text", "text": "Say hi in one word." }] }] }
 
 // 3. Run it. The call waits until the answer is ready.
 submit_node  { "mapId": "MAP_ID", "nodeId": "q1" }
@@ -109,6 +111,8 @@ submit_node  { "mapId": "MAP_ID", "nodeId": "q1" }
 // 4. Read it back.
 get_node     { "mapId": "MAP_ID", "nodeId": "q1" }
 ```
+
+The API also still accepts a legacy `text` field for node content, but `messages` is the canonical shape.
 
 The skill at [`skills/mindmapio/SKILL.md`](skills/mindmapio/SKILL.md) shows the same flow as curl commands.
 
