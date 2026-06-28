@@ -26,7 +26,7 @@ Add this to your MCP client config. `npx` fetches and runs the package for you:
   "mcpServers": {
     "mindmapio": {
       "command": "npx",
-      "args": ["-y", "mindmapio-mcp"],
+      "args": ["-y", "github:MohGanji/mindmapio-mcp"],
       "env": {
         "MINDMAP_API_TOKEN": "<your personal access token>"
       }
@@ -34,6 +34,14 @@ Add this to your MCP client config. `npx` fetches and runs the package for you:
   }
 }
 ```
+
+With the Claude Code CLI, the same thing in one line:
+
+```bash
+claude mcp add mindmapio --env MINDMAP_API_TOKEN=<your token> -- npx -y github:MohGanji/mindmapio-mcp
+```
+
+The first run builds from source, so it takes a few extra seconds. Later runs are cached.
 
 ### Settings
 
