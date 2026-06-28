@@ -1,7 +1,7 @@
 # mindmapio-mcp
 
 Drive [Mindmap.io](https://mindmap.io) maps from an AI agent. This package wraps
-the Mindmap.io unified node API (ADR 0021) so external agents can read maps and
+the Mindmap.io unified node API so external agents can read maps and
 nodes, build subtrees with client-minted ids, and run the generative node
 operations: submit, auto-expand, retry, and interrupt.
 
