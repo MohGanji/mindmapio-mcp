@@ -1,6 +1,6 @@
 {
   "name": "mindmapio-mcp",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "MCP server and agent skill for driving mindmap.io maps from an AI agent.",
   "type": "module",
   "bin": {
