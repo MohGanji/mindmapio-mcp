@@ -86,7 +86,7 @@ mm "/api/mindmaps/MAP_ID/nodes/NODE_ID/subtree?depth=2"
 
 **Create a map** — `POST /api/mindmaps` with `{title?, kind?, data?}`. Pass an initial `data` tree with a root node so later node primitives have a parent to hang from. → `201 {id, title?, kind?}`.
 
-The root is a node like any other: give it an explicit `node_type`. A topic or content root is `data` (it holds content, not a prompt to run, and is summarized like any data node). Use `prompt` only if the root itself is a question you intend to `submit`. Omitting `node_type` is not "no type" — the server stores it as `prompt`, leaving a content root mistyped as an unrun prompt.
+Give the root an explicit type. **Casing matters here:** `data` is a node *tree* (the same shape reads return), so its fields are camelCase — use **`nodeType`**, not the `node_type` you send to the per-node `POST .../nodes` write below. A topic or content root is `nodeType: "data"` (it holds content, not a prompt to run, and is summarized like any data node). Use `"prompt"` only if the root itself is a question you intend to `submit`. Omitting it is not "no type" — the server stores the root as `prompt`, leaving a content root mistyped as an unrun prompt.
 
 ```bash
 mm /api/mindmaps -X POST -d '{
@@ -96,7 +96,7 @@ mm /api/mindmaps -X POST -d '{
     "nodes": {
       "root": {
         "id": "root",
-        "node_type": "data",
+        "nodeType": "data",
         "messages": [{ "role": "user", "parts": [{ "type": "text", "text": "Topic" }] }],
         "children": []
       }
@@ -212,8 +212,9 @@ On `429`, stop generating and surface the CTA rather than retrying blindly.
 ## Hello world
 
 ```bash
-# create a map with a data root (a content/topic root, not a prompt to run)
-MAP=$(mm /api/mindmaps -X POST -d '{"title":"Hello","data":{"rootId":"root","nodes":{"root":{"id":"root","node_type":"data","messages":[{"role":"user","parts":[{"type":"text","text":"Hello"}]}],"children":[]}}}}' | jq -r '.id')
+# create a map with a data root (a content/topic root, not a prompt to run).
+# data is a node tree, so the root's type is camelCase nodeType (not node_type).
+MAP=$(mm /api/mindmaps -X POST -d '{"title":"Hello","data":{"rootId":"root","nodes":{"root":{"id":"root","nodeType":"data","messages":[{"role":"user","parts":[{"type":"text","text":"Hello"}]}],"children":[]}}}}' | jq -r '.id')
 # add a prompt node under the root
 mm /api/mindmaps/$MAP/nodes -X POST -d '{"nodeId":"q1","parentId":"root","data":{"messages":[{"role":"user","parts":[{"type":"text","text":"Say hi in one word."}]}],"node_type":"prompt"}}'
 # run it and read the answer back
