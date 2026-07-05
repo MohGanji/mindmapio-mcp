@@ -149,6 +149,44 @@ describe("map writes", () => {
     expect(captured[0].url).toBe("https://api.example.test/api/mindmaps/m1");
     expect(result).toEqual({ success: true });
   });
+
+  it("publishMap POSTs /api/mindmaps/{id}/publish and returns the public id", async () => {
+    mockNext(jsonResponse({ publicId: "pub123" }));
+    const result = await makeClient().publishMap("m1");
+    expect(captured[0].method).toBe("POST");
+    expect(captured[0].url).toBe("https://api.example.test/api/mindmaps/m1/publish");
+    expect(result).toEqual({ publicId: "pub123" });
+  });
+
+  it("unpublishMap DELETEs /api/mindmaps/{id}/publish", async () => {
+    mockNext(jsonResponse({ success: true }));
+    const result = await makeClient().unpublishMap("m1");
+    expect(captured[0].method).toBe("DELETE");
+    expect(captured[0].url).toBe("https://api.example.test/api/mindmaps/m1/publish");
+    expect(result).toEqual({ success: true });
+  });
+});
+
+describe("public map urls", () => {
+  it("builds viewer + embed links framed by node/zoom/cz (defaults)", () => {
+    const urls = makeClient().publicMapUrls("pub123");
+    expect(urls).toEqual({
+      publicId: "pub123",
+      viewerUrl: "https://api.example.test/app/pub123?node=root&zoom=full&cz=100",
+      embedUrl: "https://api.example.test/app/embed/pub123?node=root&zoom=full&cz=100",
+    });
+  });
+
+  it("honors an explicit zoom level and canvas zoom", () => {
+    const urls = makeClient().publicMapUrls("pub123", { zoom: "keyword", cz: 90 });
+    expect(urls.viewerUrl).toBe("https://api.example.test/app/pub123?node=root&zoom=keyword&cz=90");
+    expect(urls.embedUrl).toBe("https://api.example.test/app/embed/pub123?node=root&zoom=keyword&cz=90");
+  });
+
+  it("falls back to full for an unknown zoom level", () => {
+    const urls = makeClient().publicMapUrls("pub123", { zoom: "bogus" as any });
+    expect(urls.viewerUrl).toContain("zoom=full");
+  });
 });
 
 describe("node writes", () => {

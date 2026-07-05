@@ -62,6 +62,8 @@ The first run builds from source, so it takes a few extra seconds. Later runs ar
 | `get_subtree` | Read a node and its children, as deep as you want. |
 | `create_map` | Start a new map. |
 | `delete_map` | Delete a map and everything in it. |
+| `publish_map` | Publish a map and get its shareable + embed links. |
+| `unpublish_map` | Make a published map private again. |
 | `create_node` | Add a node under a parent. |
 | `update_node` | Edit a node's content, note, type, or model. |
 | `delete_node` | Remove a node and its children. |

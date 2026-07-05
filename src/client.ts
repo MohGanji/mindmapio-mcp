@@ -1,18 +1,22 @@
-import type {
-  AutoExpandRequest,
-  AutoExpandResponse,
-  CreateMapRequest,
-  CreateMapResponse,
-  CreateNodeRequest,
-  MindMap,
-  MindMapSummary,
-  Node,
-  RespondResponse,
-  SubmitNodeRequest,
-  SubmitNodeResponse,
-  SubtreeNode,
-  SuccessResponse,
-  UpdateNodeRequest,
+import {
+  ZOOM_LEVELS,
+  type AutoExpandRequest,
+  type AutoExpandResponse,
+  type CreateMapRequest,
+  type CreateMapResponse,
+  type CreateNodeRequest,
+  type MindMap,
+  type MindMapSummary,
+  type Node,
+  type PublicMapUrls,
+  type PublishMapResponse,
+  type RespondResponse,
+  type SubmitNodeRequest,
+  type SubmitNodeResponse,
+  type SubtreeNode,
+  type SuccessResponse,
+  type UpdateNodeRequest,
+  type ZoomLevel,
 } from "./types.js";
 
 const DEFAULT_BASE_URL = "https://mindmap.io";
@@ -81,6 +85,38 @@ export class MindmapClient {
 
   deleteMap(id: string): Promise<SuccessResponse> {
     return this.#request<SuccessResponse>("DELETE", `/api/mindmaps/${encodeURIComponent(id)}`);
+  }
+
+  // --- publishing (ADR 0021) ---------------------------------------------
+
+  /** Publish a map: owner-only, mints/reuses a public slug and returns it. */
+  publishMap(id: string): Promise<PublishMapResponse> {
+    return this.#request<PublishMapResponse>("POST", `${this.#mapPath(id)}/publish`);
+  }
+
+  /** Unpublish a map: flips it back to private, 404ing every public link. */
+  unpublishMap(id: string): Promise<SuccessResponse> {
+    return this.#request<SuccessResponse>("DELETE", `${this.#mapPath(id)}/publish`);
+  }
+
+  /**
+   * Build the shareable + embeddable links for a published map, framed on first
+   * paint by `node=root`, the semantic `zoom` level, and the canvas `cz` percent.
+   * Pure string building over the client's base url — no request. An unknown
+   * zoom falls back to 'full', matching the app and the marketing URL builder.
+   */
+  publicMapUrls(
+    publicId: string,
+    { zoom = "full", cz = 100 }: { zoom?: ZoomLevel; cz?: number } = {},
+  ): PublicMapUrls {
+    const level = ZOOM_LEVELS.includes(zoom) ? zoom : "full";
+    const query = new URLSearchParams({ node: "root", zoom: level, cz: String(cz) }).toString();
+    const slug = encodeURIComponent(publicId);
+    return {
+      publicId,
+      viewerUrl: `${this.#baseUrl}/app/${slug}?${query}`,
+      embedUrl: `${this.#baseUrl}/app/embed/${slug}?${query}`,
+    };
   }
 
   // --- nodes (read) -------------------------------------------------------
