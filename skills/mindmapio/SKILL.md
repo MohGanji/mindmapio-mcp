@@ -178,6 +178,43 @@ mm "/api/mindmaps/MAP_ID/nodes/q1/retry?force=true" -X POST -d '{}'
 mm /api/mindmaps/MAP_ID/nodes/q1/interrupt -X POST
 ```
 
+### Publish
+
+Publishing flips a map from private to public and mints a non-guessable public
+id (slug). Owner-only; not metered. This is how you turn a map you built into a
+shareable link or an iframe embed.
+
+**Publish a map** — `POST /api/mindmaps/{mapId}/publish`. Mints a public id if
+the map has none (re-publishing reuses the existing one) and flips visibility to
+public. → `{publicId}`.
+
+```bash
+mm /api/mindmaps/MAP_ID/publish -X POST
+# → {"publicId":"G_N4wWD2TiUIoHuO"}
+```
+
+**Unpublish a map** — `DELETE /api/mindmaps/{mapId}/publish`. Flips back to
+private, which immediately `404`s every public/embed link (the revoke
+mechanism). The public id is retained for re-publishing. → `{success:true}`.
+
+Build the shareable links from the `publicId`. The query frames the map on first
+paint: `node=root`, the semantic `zoom` level (`full` default; `keyword`/`phrase`
+open a large **reference** map zoomed-out so its whole shape shows at a glance),
+and `cz`, the canvas-zoom percent.
+
+```
+Viewer link:  https://mindmap.io/app/<publicId>?node=root&zoom=<level>&cz=<percent>
+Iframe embed: https://mindmap.io/app/embed/<publicId>?node=root&zoom=<level>&cz=<percent>
+```
+
+So a zoomed-out reference map embeds as
+`https://mindmap.io/app/embed/G_N4wWD2TiUIoHuO?node=root&zoom=keyword&cz=90`, and
+a normal example/template map as `…?node=root&zoom=full&cz=100`.
+
+> Via the MCP server, `publish_map` does both steps in one call — it publishes
+> and returns `{publicId, viewerUrl, embedUrl}` already framed by the `zoom`/`cz`
+> you pass. `unpublish_map` reverses it.
+
 ## Pattern: agent-drives-recursion for auto-expand
 
 Auto-expand does NOT recurse and does NOT run the children it creates — it only

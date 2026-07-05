@@ -8,6 +8,13 @@ function fakeClient(): MindmapClient {
     getMap: vi.fn().mockResolvedValue({ id: "m1" }),
     createMap: vi.fn().mockResolvedValue({ id: "m9" }),
     deleteMap: vi.fn().mockResolvedValue({ success: true }),
+    publishMap: vi.fn().mockResolvedValue({ publicId: "pub123" }),
+    unpublishMap: vi.fn().mockResolvedValue({ success: true }),
+    publicMapUrls: vi.fn().mockReturnValue({
+      publicId: "pub123",
+      viewerUrl: "https://mindmap.io/app/pub123?node=root&zoom=keyword&cz=90",
+      embedUrl: "https://mindmap.io/app/embed/pub123?node=root&zoom=keyword&cz=90",
+    }),
     getNode: vi.fn().mockResolvedValue({ node: { id: "n1", children: [] }, children: [] }),
     getSubtree: vi.fn().mockResolvedValue({ node: { id: "n1", children: [] }, children: [] }),
     createNode: vi.fn().mockResolvedValue({ id: "n1", children: [] }),
@@ -41,8 +48,10 @@ describe("tool catalogue", () => {
         "get_subtree",
         "interrupt_node",
         "list_maps",
+        "publish_map",
         "retry_node",
         "submit_node",
+        "unpublish_map",
         "update_node",
       ].sort(),
     );
@@ -102,6 +111,30 @@ describe("map write wiring", () => {
     const client = fakeClient();
     await tool("delete_map").handler(client, { mapId: "m1" });
     expect(client.deleteMap).toHaveBeenCalledWith("m1");
+  });
+
+  it("publish_map publishes then returns the framed links", async () => {
+    const client = fakeClient();
+    const result = await tool("publish_map").handler(client, { mapId: "m1", zoom: "keyword", cz: 90 });
+    expect(client.publishMap).toHaveBeenCalledWith("m1");
+    expect(client.publicMapUrls).toHaveBeenCalledWith("pub123", { zoom: "keyword", cz: 90 });
+    expect(result).toEqual({
+      publicId: "pub123",
+      viewerUrl: "https://mindmap.io/app/pub123?node=root&zoom=keyword&cz=90",
+      embedUrl: "https://mindmap.io/app/embed/pub123?node=root&zoom=keyword&cz=90",
+    });
+  });
+
+  it("publish_map omits unset framing options", async () => {
+    const client = fakeClient();
+    await tool("publish_map").handler(client, { mapId: "m1" });
+    expect(client.publicMapUrls).toHaveBeenCalledWith("pub123", {});
+  });
+
+  it("unpublish_map passes the map id", async () => {
+    const client = fakeClient();
+    await tool("unpublish_map").handler(client, { mapId: "m1" });
+    expect(client.unpublishMap).toHaveBeenCalledWith("m1");
   });
 });
 

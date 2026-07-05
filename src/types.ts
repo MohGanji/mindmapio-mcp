@@ -116,3 +116,25 @@ export interface RespondResponse {
   status: string;
   messages: Record<string, unknown>[];
 }
+
+/**
+ * Semantic zoom levels a public link can open at (mirrors the app's ZOOM_LEVELS,
+ * ADR 0011). 'full' is the default; 'keyword'/'phrase' open a large reference map
+ * zoomed-out so its whole structure shows at a glance.
+ */
+export const ZOOM_LEVELS = ["full", "tweet", "phrase", "keyword"] as const;
+export type ZoomLevel = (typeof ZOOM_LEVELS)[number];
+
+/** POST /api/mindmaps/:id/publish — mints (or reuses) the map's public slug. */
+export interface PublishMapResponse {
+  publicId: string;
+}
+
+/** Ready-to-use links for a published map, framed by zoom + canvas zoom. */
+export interface PublicMapUrls {
+  publicId: string;
+  /** The shareable viewer link: /app/<publicId>. */
+  viewerUrl: string;
+  /** The iframe-embeddable link: /app/embed/<publicId>. */
+  embedUrl: string;
+}

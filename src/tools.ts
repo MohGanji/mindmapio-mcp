@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { MindmapClient } from "./client.js";
+import { ZOOM_LEVELS } from "./types.js";
 
 /**
  * A semantic MCP tool over a single API primitive. `inputSchema` is a Zod raw
@@ -110,6 +111,35 @@ export function buildTools(): ToolDef[] {
       description: "Delete a map and all of its nodes.",
       inputSchema: { mapId },
       handler: (client, args) => client.deleteMap(args.mapId),
+    },
+    {
+      name: "publish_map",
+      description:
+        "Publish a map so it has a public, shareable link, and return its viewer + embed URLs. Owner-only; re-publishing reuses the existing public id. Optionally set the semantic zoom level and canvas zoom the links open at ('keyword' opens a large reference map zoomed-out).",
+      inputSchema: {
+        mapId,
+        zoom: z
+          .enum(ZOOM_LEVELS)
+          .optional()
+          .describe("Semantic zoom the links open at (default 'full'; 'keyword' for a zoomed-out reference map)."),
+        cz: z
+          .number()
+          .int()
+          .positive()
+          .optional()
+          .describe("Canvas zoom percent the links open at (default 100)."),
+      },
+      handler: async (client, args) => {
+        const { publicId } = await client.publishMap(args.mapId);
+        return client.publicMapUrls(publicId, compact({ zoom: args.zoom, cz: args.cz }));
+      },
+    },
+    {
+      name: "unpublish_map",
+      description:
+        "Unpublish a map: flip it back to private, which immediately 404s every public/embed link. The public id is retained for if you re-publish.",
+      inputSchema: { mapId },
+      handler: (client, args) => client.unpublishMap(args.mapId),
     },
     {
       name: "create_node",

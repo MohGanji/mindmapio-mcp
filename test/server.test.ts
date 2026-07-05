@@ -17,7 +17,7 @@ describe("MCP server", () => {
   it("advertises one tool per primitive with input schemas", async () => {
     const client = await connect({} as MindmapClient);
     const { tools } = await client.listTools();
-    expect(tools).toHaveLength(13);
+    expect(tools).toHaveLength(15);
     const map = tools.find((t) => t.name === "get_map")!;
     expect(map.inputSchema).toBeDefined();
     expect(map.inputSchema.properties).toHaveProperty("mapId");
