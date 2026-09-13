@@ -308,8 +308,10 @@ context.
 Responses carry `{error}` on failure. Common statuses: `401` (no/revoked
 token), `403` (not the token user's map), `404` (missing map/parent/node), `400`
 (malformed, or deleting the root), `409` (duplicate node id, or re-running a
-node that already has children without `force`), `429` (over budget — body carries an upgrade/buy-credits CTA).
-On `429`, stop generating and surface the CTA rather than retrying blindly.
+node that already has children without `force`), `429` (over budget — body
+carries an upgrade/buy-credits CTA). On `429`, stop generating and surface the
+CTA rather than retrying blindly. Uploads add two of their own: `413` over the
+10 MB cap, `415` for a file that is neither an image nor a PDF.
 
 ## Hello world
 
