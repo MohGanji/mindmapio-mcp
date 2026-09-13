@@ -6,6 +6,7 @@ interface CapturedCall {
   method: string;
   headers: Record<string, string>;
   body: unknown;
+  rawBody: unknown;
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -28,7 +29,8 @@ function mockNext(response: Response): void {
       url: String(input),
       method: init?.method ?? "GET",
       headers,
-      body: init?.body ? JSON.parse(init.body) : undefined,
+      body: typeof init?.body === "string" ? JSON.parse(init.body) : undefined,
+      rawBody: init?.body,
     });
     return response;
   });
@@ -350,5 +352,47 @@ describe("token redaction", () => {
       caught = err;
     }
     expect(JSON.stringify(Object.values(caught))).not.toContain("secret-pat");
+  });
+});
+
+describe("attachments", () => {
+  const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+
+  it("uploads the raw bytes with the file's own media type", async () => {
+    mockNext(jsonResponse({ id: "att_1", url: "/api/files/att_1", mediaType: "image/png", size: 4 }, 201));
+    await makeClient().uploadAttachment("m1", { bytes, mediaType: "image/png", filename: "shot 1.png" });
+    const call = captured[0];
+    expect(call.url).toBe("https://api.example.test/api/mindmaps/m1/files");
+    expect(call.method).toBe("POST");
+    expect(call.headers["content-type"]).toBe("image/png");
+    expect(new Uint8Array(call.rawBody as ArrayBufferView["buffer"] & ArrayBuffer)).toBeDefined();
+  });
+
+  it("percent-encodes the original filename into X-Filename", async () => {
+    mockNext(jsonResponse({ id: "att_1", url: "/api/files/att_1", mediaType: "image/png", size: 4 }, 201));
+    await makeClient().uploadAttachment("m1", { bytes, mediaType: "image/png", filename: "shot 1.png" });
+    expect(captured[0].headers["x-filename"]).toBe("shot%201.png");
+  });
+
+  it("returns the stored attachment, whose url goes in a node file part", async () => {
+    mockNext(jsonResponse({ id: "att_1", url: "/api/files/att_1", mediaType: "image/png", size: 4 }, 201));
+    const result = await makeClient().uploadAttachment("m1", { bytes, mediaType: "image/png" });
+    expect(result).toEqual({ id: "att_1", url: "/api/files/att_1", mediaType: "image/png", size: 4 });
+  });
+
+  it("reads a file back as bytes plus its media type", async () => {
+    fetchMock.mockImplementationOnce(async (input: any) => {
+      captured.push({ url: String(input), method: "GET", headers: {}, body: undefined, rawBody: undefined });
+      return new Response(bytes, { status: 200, headers: { "content-type": "image/png" } });
+    });
+    const file = await makeClient().readAttachment("att_1");
+    expect(captured[0].url).toBe("https://api.example.test/api/files/att_1");
+    expect(file.mediaType).toBe("image/png");
+    expect([...file.bytes]).toEqual([...bytes]);
+  });
+
+  it("raises an ApiError when a file read is refused", async () => {
+    mockNext(jsonResponse({ error: "forbidden" }, 403));
+    await expect(makeClient().readAttachment("att_1")).rejects.toBeInstanceOf(ApiError);
   });
 });

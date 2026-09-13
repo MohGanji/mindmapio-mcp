@@ -1,0 +1,1395 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Mindmap.io Node API",
+    "version": "0.1.0",
+    "description": "The agent-first unified node API for Mindmap.io (ADR 0022). One set of HTTP primitives drives maps for external agents, the canvas UI, and the future in-app chatbot. This document is the primary surface; an MCP server and/or an installable agent skill wrap it. This revision covers authentication, the read endpoints (list maps, read a full map, read a node, read a subtree), and the structural write primitives (create/delete a map, create/update/delete a node). Clients mint node ids, so a primitive can reference a not-yet-persisted node. It also covers the generative operations on a node — submit, auto-expand, retry, and interrupt.\n"
+  },
+  "servers": [
+    {
+      "url": "https://mindmap.io",
+      "description": "Production"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "maps",
+      "description": "Read a user's maps and their node trees."
+    },
+    {
+      "name": "nodes",
+      "description": "Read individual nodes and subtrees."
+    },
+    {
+      "name": "generation",
+      "description": "Generative operations that invoke the LLM on a node."
+    }
+  ],
+  "paths": {
+    "/api/mindmaps": {
+      "get": {
+        "operationId": "listMindmaps",
+        "tags": [
+          "maps"
+        ],
+        "summary": "List the authenticated user's maps",
+        "description": "Returns the metadata (no node tree) for every map owned by the token's user, newest first.\n",
+        "x-mcp": {
+          "title": "List maps",
+          "readOnlyHint": true,
+          "destructiveHint": false
+        },
+        "responses": {
+          "200": {
+            "description": "The user's maps.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MindMapSummary"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createMap",
+        "tags": [
+          "maps"
+        ],
+        "summary": "Create a map",
+        "description": "Creates a map owned by the token's user. Pass an initial node tree in `data` (with a root node) so structural node primitives have a parent to hang from. Returns the new map's id.\n",
+        "x-mcp": {
+          "title": "Create a map",
+          "readOnlyHint": false,
+          "destructiveHint": false
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMapRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created map.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateMapResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/api/mindmaps/{id}": {
+      "get": {
+        "operationId": "getMindmap",
+        "tags": [
+          "maps"
+        ],
+        "summary": "Read a full map",
+        "description": "Returns one map including its complete node tree. Node IDs are unprefixed. Ownership is enforced.\n",
+        "x-mcp": {
+          "title": "Read a full map",
+          "readOnlyHint": true,
+          "destructiveHint": false
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/MapId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The map and its node tree.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MindMap"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteMap",
+        "tags": [
+          "maps"
+        ],
+        "summary": "Delete a map",
+        "description": "Deletes a map and all of its nodes. Ownership is enforced.\n",
+        "x-mcp": {
+          "title": "Delete a map",
+          "readOnlyHint": false,
+          "destructiveHint": true
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/MapId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The map was deleted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/mindmaps/{id}/publish": {
+      "post": {
+        "operationId": "publishMap",
+        "tags": [
+          "maps"
+        ],
+        "summary": "Publish a map",
+        "description": "Makes a map publicly viewable and returns its public id (ADR 0021). Mints a public id if the map has none; re-publishing a map that was unpublished reuses the id it already had. Owner-only, and not metered. Build the shareable link as `/app/{publicId}` and the embed as `/app/embed/{publicId}`.\n",
+        "x-mcp": {
+          "title": "Publish a map",
+          "readOnlyHint": false,
+          "destructiveHint": false
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/MapId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The map is public.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "unpublishMap",
+        "tags": [
+          "maps"
+        ],
+        "summary": "Unpublish a map",
+        "description": "Makes a map private again. Every public and embed link for it starts returning 404 immediately, which is how a shared map is revoked. The public id is retained, so publishing again restores the same link. Owner-only, and not metered.\n",
+        "x-mcp": {
+          "title": "Unpublish a map",
+          "readOnlyHint": false,
+          "destructiveHint": false
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/MapId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The map is private.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/mindmaps/{mapId}/files": {
+      "post": {
+        "operationId": "uploadAttachment",
+        "tags": [
+          "attachments"
+        ],
+        "summary": "Upload a file to attach to a node",
+        "description": "Uploads one image or PDF into a map and returns the reference used to attach it. The request body is the file itself, not a multipart envelope: one file per request needs none, and it keeps per-file failure natural. Set `Content-Type` to the file's own media type and put its percent-encoded name in `X-Filename`.\n\nAttach the result by appending a `file` part to the node's user message (`{ \"type\": \"file\", \"mediaType\": ..., \"filename\": ..., \"url\": ... }`) via create or update node. Images are described by the house model at upload and the description is what a model without vision reads in their place, so nothing extra is needed to make an attachment usable as context.\n\nAccepts image/png, image/jpeg, image/webp, image/gif and application/pdf, up to 10 MB each and 5 per node. Ownership is enforced.\n",
+        "x-mcp": {
+          "title": "Upload a file",
+          "readOnlyHint": false,
+          "destructiveHint": false
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/MapId2"
+          },
+          {
+            "name": "X-Filename",
+            "in": "header",
+            "required": false,
+            "description": "The file's original name, percent-encoded.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "The raw bytes of the file.",
+          "content": {
+            "image/png": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "image/jpeg": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "image/webp": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "image/gif": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "application/pdf": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The stored attachment.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Attachment"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "description": "The file is over the 10 MB per-file cap."
+          },
+          "415": {
+            "description": "The file is neither an image nor a PDF."
+          }
+        }
+      }
+    },
+    "/api/files/{attachmentId}": {
+      "get": {
+        "operationId": "readAttachment",
+        "tags": [
+          "attachments"
+        ],
+        "summary": "Read an uploaded file",
+        "description": "Returns the file's bytes. Authorization is decided per file from the map it was uploaded into: a published map's attachments are readable by anyone, the same file on a private map only by its owner. This is the URL that goes in a node's `file` part.\n",
+        "x-mcp": {
+          "title": "Read an uploaded file",
+          "readOnlyHint": true,
+          "destructiveHint": false
+        },
+        "parameters": [
+          {
+            "name": "attachmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The file.",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/mindmaps/{mapId}/nodes": {
+      "post": {
+        "operationId": "createNode",
+        "tags": [
+          "nodes"
+        ],
+        "summary": "Create a node",
+        "description": "Creates a node under a resolvable parent with a client-minted id that must be unique within the map. The node is born structural (a `draft`); running a prompt node is a separate generative operation. Returns the full created node. Ownership is enforced.\n",
+        "x-mcp": {
+          "title": "Create a node",
+          "readOnlyHint": false,
+          "destructiveHint": false
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/MapId2"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateNodeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created node (full, unprefixed).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Node"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/api/mindmaps/{mapId}/nodes/{nodeId}": {
+      "get": {
+        "operationId": "getNode",
+        "tags": [
+          "nodes"
+        ],
+        "summary": "Read a single node",
+        "description": "Returns one node without its descendants, so an agent can inspect a node cheaply without pulling the whole map. The response uses the nested read shape with an empty `children` array; the node's own `children` field still lists its child IDs for navigation. Ownership is enforced.\n",
+        "x-mcp": {
+          "title": "Read a node",
+          "readOnlyHint": true,
+          "destructiveHint": false
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/MapId2"
+          },
+          {
+            "$ref": "#/components/parameters/NodeId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The node, with an empty descendants array.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubtreeNode"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateNode",
+        "tags": [
+          "nodes"
+        ],
+        "summary": "Update a node",
+        "description": "Applies a structural update to a node — text, note, model, node type (set/rotate), or the collapsed flag. A pure tree mutation: no LLM call, no metering. Ownership is enforced.\n",
+        "x-mcp": {
+          "title": "Update a node",
+          "readOnlyHint": false,
+          "destructiveHint": true
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/MapId2"
+          },
+          {
+            "$ref": "#/components/parameters/NodeId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateNodeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The update was applied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteNode",
+        "tags": [
+          "nodes"
+        ],
+        "summary": "Delete a node",
+        "description": "Deletes a node and all of its descendants (cascade), reindexing the surviving siblings. The root node cannot be deleted. Ownership is enforced.\n",
+        "x-mcp": {
+          "title": "Delete a node and its descendants",
+          "readOnlyHint": false,
+          "destructiveHint": true
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/MapId2"
+          },
+          {
+            "$ref": "#/components/parameters/NodeId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The node and its descendants were deleted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/mindmaps/{mapId}/nodes/{nodeId}/submit": {
+      "post": {
+        "operationId": "submitNode",
+        "tags": [
+          "generation"
+        ],
+        "summary": "Submit a node and get the completed node back",
+        "description": "Runs the LLM on a node and returns the completed node — the first generative operation. The call BLOCKS: it waits until no ancestor is still generating (the generation gate, so the response always sees complete ancestor context and never races a parent that is mid-stream), then runs the generation to completion server-side and returns the finished node. Metered by the usage gate against the token's user once the generation gate clears; over budget returns 429. Ownership is enforced.\n",
+        "x-mcp": {
+          "title": "Submit a node",
+          "readOnlyHint": false,
+          "destructiveHint": false
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/MapId2"
+          },
+          {
+            "$ref": "#/components/parameters/NodeId"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitNodeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The completed node.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmitNodeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/mindmaps/{mapId}/nodes/{nodeId}/auto-expand": {
+      "post": {
+        "operationId": "autoExpandNode",
+        "tags": [
+          "generation"
+        ],
+        "summary": "Auto-expand a node into queued follow-up children",
+        "description": "Generates follow-up prompts for the node's thread and creates them as `queued` child nodes, returning their ids. One level only: it does NOT run the children and does NOT recurse — the agent submits each returned child via the submit operation itself. Metered by the usage gate against the token's user; over budget returns 429. Ownership is enforced.\n",
+        "x-mcp": {
+          "title": "Auto-expand a node",
+          "readOnlyHint": false,
+          "destructiveHint": false
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/MapId2"
+          },
+          {
+            "$ref": "#/components/parameters/NodeId"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutoExpandRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The ids of the newly created queued children.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutoExpandResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/mindmaps/{mapId}/nodes/{nodeId}/retry": {
+      "post": {
+        "operationId": "retryNode",
+        "tags": [
+          "generation"
+        ],
+        "summary": "Retry a failed or interrupted node",
+        "description": "Clears the node's prior error state and re-runs its generation, returning the regenerated node. Retrying an expand node that already has children is refused with 409 (re-expanding would orphan the existing fan-out) unless `force=true`, which deletes those children first via the structural cascade. Metered by the usage gate against the token's user; over budget returns 429. Ownership is enforced.\n",
+        "x-mcp": {
+          "title": "Retry a node",
+          "readOnlyHint": false,
+          "destructiveHint": true
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/MapId2"
+          },
+          {
+            "$ref": "#/components/parameters/NodeId"
+          },
+          {
+            "name": "force",
+            "in": "query",
+            "required": false,
+            "description": "When true, delete an expand node's existing children before retrying instead of returning 409.\n",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitNodeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The regenerated node.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespondResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/mindmaps/{mapId}/nodes/{nodeId}/interrupt": {
+      "post": {
+        "operationId": "interruptNode",
+        "tags": [
+          "generation"
+        ],
+        "summary": "Interrupt an in-flight node",
+        "description": "Stops an in-flight generation: a node that is `generating` or `queued` flips to `interrupted` with any partial output preserved. Idempotent — a node that is already terminal is returned unchanged. Returns the final node. Not metered. Ownership is enforced.\n",
+        "x-mcp": {
+          "title": "Interrupt a node",
+          "readOnlyHint": false,
+          "destructiveHint": false
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/MapId2"
+          },
+          {
+            "$ref": "#/components/parameters/NodeId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The final node after interruption.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Node"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/mindmaps/{mapId}/nodes/{nodeId}/subtree": {
+      "get": {
+        "operationId": "getSubtree",
+        "tags": [
+          "nodes"
+        ],
+        "summary": "Read a node and its descendants",
+        "description": "Returns a node and its descendants as a nested tree, so an agent can pull a branch without the whole map. Recurses without bound by default; the optional `depth` query parameter caps the descent (0 yields the node alone). Node IDs are unprefixed and ownership is enforced.\n",
+        "x-mcp": {
+          "title": "Read a branch",
+          "readOnlyHint": true,
+          "destructiveHint": false
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/MapId2"
+          },
+          {
+            "$ref": "#/components/parameters/NodeId"
+          },
+          {
+            "name": "depth",
+            "in": "query",
+            "required": false,
+            "description": "Maximum descendant levels to include. Omit for the full subtree; 0 returns just the node, 1 the node and its immediate children, and so on. Negative or non-integer values are treated as omitted.\n",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The node and its descendants.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubtreeNode"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "A long-lived personal access token (PAT) generated once in settings and sent as `Authorization: Bearer <token>`. The token acts as its user; revoking it (regenerating) immediately rejects further calls.\n"
+      }
+    },
+    "parameters": {
+      "MapId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "The map ID.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "MapId2": {
+        "name": "mapId",
+        "in": "path",
+        "required": true,
+        "description": "The map ID.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "NodeId": {
+        "name": "nodeId",
+        "in": "path",
+        "required": true,
+        "description": "The node ID (unprefixed, as returned in node trees).",
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "No token, or a revoked/unknown token."
+      },
+      "Forbidden": {
+        "description": "The token's user does not own this map.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "The map, parent, or node does not exist.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "BadRequest": {
+        "description": "The request is malformed or the operation is not allowed (e.g. deleting the root).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "The supplied node id already exists in the map.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "The usage gate denied the generation — the token's user is over budget (monthly limit or spent lifetime grant). The body carries an upgrade or buy-credits CTA.\n",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Attachment": {
+        "type": "object",
+        "description": "An uploaded file. `url` is what goes in a node message's `file` part; `altText` is the house model's description of an image, which a model without vision reads in place of the picture (null for a PDF, or when describing the image failed).\n",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "example": "/api/files/att_9f2c1d4e"
+          },
+          "mediaType": {
+            "type": "string",
+            "example": "image/png"
+          },
+          "filename": {
+            "type": "string",
+            "nullable": true
+          },
+          "size": {
+            "type": "integer",
+            "description": "Bytes."
+          },
+          "altText": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "url",
+          "mediaType",
+          "size"
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ]
+      },
+      "PublishResponse": {
+        "type": "object",
+        "properties": {
+          "publicId": {
+            "type": "string",
+            "description": "The map's public slug. The shareable link is `/app/{publicId}` and the embeddable one is `/app/embed/{publicId}`.\n",
+            "examples": [
+              "G_N4wWD2TiUIoHuO"
+            ]
+          }
+        },
+        "required": [
+          "publicId"
+        ]
+      },
+      "CreateMapRequest": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "description": "The map kind (defaults to mindmap)."
+          },
+          "data": {
+            "$ref": "#/components/schemas/MapData"
+          }
+        }
+      },
+      "CreateMapResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "CreateNodeRequest": {
+        "type": "object",
+        "properties": {
+          "nodeId": {
+            "type": "string",
+            "description": "The client-minted node id, unique within the map."
+          },
+          "parentId": {
+            "type": "string",
+            "description": "The id of an existing node to create this node under."
+          },
+          "position": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Insert index among the parent's children; appended when omitted."
+          },
+          "data": {
+            "type": "object",
+            "description": "Initial node fields.",
+            "properties": {
+              "messages": {
+                "type": "array",
+                "description": "Node content as the canonical messages array (UIMessage shape: role + parts[].text). This is the source of truth — prefer it.\n",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "note": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string",
+                "deprecated": true,
+                "description": "Legacy content field. Still accepted (the server derives the messages user turn from it) but deprecated — send `messages`.\n"
+              },
+              "node_type": {
+                "type": "string",
+                "description": "The node's type (e.g. prompt, data, expand)."
+              }
+            }
+          }
+        },
+        "required": [
+          "nodeId",
+          "parentId"
+        ]
+      },
+      "UpdateNodeRequest": {
+        "type": "object",
+        "description": "Fields to update. Any subset may be sent; omitted fields are unchanged.\n",
+        "properties": {
+          "messages": {
+            "type": "array",
+            "description": "Updated node content as the canonical messages array (UIMessage shape). This is the source of truth — prefer it.\n",
+            "items": {
+              "type": "object"
+            }
+          },
+          "note": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string",
+            "deprecated": true,
+            "description": "Legacy content field. Still accepted but deprecated — send `messages`.\n"
+          },
+          "node_type": {
+            "type": "string",
+            "description": "Set or rotate the node's type."
+          },
+          "is_collapsed": {
+            "type": "boolean"
+          },
+          "model_provider": {
+            "type": "string"
+          },
+          "model_id": {
+            "type": "string"
+          }
+        }
+      },
+      "SubmitNodeRequest": {
+        "type": "object",
+        "description": "Optional generation inputs. `prompt` supplies the node's user text when it has not been persisted yet; omit it to run the node's stored text. `modelId` overrides the model (must be an exposed model); omit it to use the house model.\n",
+        "properties": {
+          "prompt": {
+            "type": "string"
+          },
+          "modelId": {
+            "type": "string"
+          }
+        }
+      },
+      "SubmitNodeResponse": {
+        "type": "object",
+        "description": "The completed node after generation.",
+        "properties": {
+          "nodeId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "The node's terminal status (e.g. complete, or generating for an expand node still fanning out)."
+          },
+          "messages": {
+            "type": "array",
+            "description": "The node's messages — the user prompt plus the assistant response.",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "nodeId",
+          "status",
+          "messages"
+        ]
+      },
+      "AutoExpandRequest": {
+        "type": "object",
+        "description": "Optional fan-out controls. `count` is the number of follow-ups to generate (clamped to 1–4, default 2); `direction` steers what the follow-ups explore.\n",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4
+          },
+          "direction": {
+            "type": "string"
+          }
+        }
+      },
+      "AutoExpandResponse": {
+        "type": "object",
+        "description": "The node that was expanded and the ids of its new queued children.",
+        "properties": {
+          "nodeId": {
+            "type": "string"
+          },
+          "childIds": {
+            "type": "array",
+            "description": "The ids of the newly created queued child nodes, in order.",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "nodeId",
+          "childIds"
+        ]
+      },
+      "RespondResponse": {
+        "type": "object",
+        "description": "A regenerated node after respond/retry.",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "status",
+          "messages"
+        ]
+      },
+      "MindMapSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        }
+      },
+      "MindMap": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/MapData"
+          }
+        }
+      },
+      "MapData": {
+        "type": "object",
+        "description": "The map's node tree.",
+        "properties": {
+          "rootId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "selectedId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "nodes": {
+            "type": "object",
+            "description": "Map of node ID to node, keyed by unprefixed node ID.",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Node"
+            }
+          }
+        }
+      },
+      "Node": {
+        "type": "object",
+        "description": "A single map node with unprefixed IDs.",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "parentId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "children": {
+            "type": "array",
+            "description": "IDs of the node's immediate children.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "nodeType": {
+            "type": "string",
+            "description": "The node's type (e.g. prompt, data, expand)."
+          },
+          "status": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": "string"
+          },
+          "isRead": {
+            "type": "boolean"
+          },
+          "isCollapsed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "children"
+        ]
+      },
+      "SubtreeNode": {
+        "type": "object",
+        "description": "The nested read shape shared by getNode and getSubtree: a node plus its descendants, each itself a SubtreeNode.\n",
+        "properties": {
+          "node": {
+            "$ref": "#/components/schemas/Node"
+          },
+          "children": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubtreeNode"
+            }
+          }
+        },
+        "required": [
+          "node",
+          "children"
+        ]
+      }
+    }
+  }
+}

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { realpathSync } from "node:fs";
+import { createRequire } from "node:module";
 import { argv } from "node:process";
 import { pathToFileURL } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -12,13 +13,21 @@ import { buildTools } from "./tools.js";
  * delegates to the shared client; results are returned as JSON text content and
  * API errors are surfaced as tool errors (the bearer token is never included).
  */
+/** The package's own version, so the advertised one cannot drift from it. */
+const { version } = createRequire(import.meta.url)("../../package.json") as { version: string };
+
 export function createServer(client: MindmapClient): McpServer {
-  const server = new McpServer({ name: "mindmapio-mcp", version: "0.1.0" });
+  const server = new McpServer({ name: "mindmapio-mcp", version });
 
   for (const tool of buildTools()) {
     server.registerTool(
       tool.name,
-      { description: tool.description, inputSchema: tool.inputSchema },
+      {
+        title: tool.annotations.title,
+        description: tool.description,
+        inputSchema: tool.inputSchema,
+        annotations: tool.annotations,
+      },
       async (args: unknown) => {
         try {
           const result = await tool.handler(client, args ?? {});

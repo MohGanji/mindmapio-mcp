@@ -138,3 +138,30 @@ export interface PublicMapUrls {
   /** The iframe-embeddable link: /app/embed/<publicId>. */
   embedUrl: string;
 }
+
+/**
+ * An uploaded file. `url` is what goes in a node message's `file` part;
+ * `altText` is the house model's description of an image, which a model without
+ * vision reads in place of the picture.
+ */
+export interface Attachment {
+  id: string;
+  url: string;
+  mediaType: string;
+  filename?: string | null;
+  size: number;
+  altText?: string | null;
+}
+
+/** A file on its way up: the bytes, its media type, and its original name. */
+export interface AttachmentUpload {
+  bytes: Uint8Array;
+  mediaType: string;
+  filename?: string;
+}
+
+/** A file read back: its bytes and the media type the API served them as. */
+export interface AttachmentDownload {
+  bytes: Uint8Array;
+  mediaType: string;
+}

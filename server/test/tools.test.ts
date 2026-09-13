@@ -1,3 +1,6 @@
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { buildTools } from "../src/tools.js";
 import type { MindmapClient } from "../src/client.js";
@@ -24,6 +27,12 @@ function fakeClient(): MindmapClient {
     autoExpand: vi.fn().mockResolvedValue({ nodeId: "n1", childIds: ["c1"] }),
     retryNode: vi.fn().mockResolvedValue({ status: "complete", messages: [] }),
     interruptNode: vi.fn().mockResolvedValue({ id: "n1", children: [], status: "interrupted" }),
+    uploadAttachment: vi
+      .fn()
+      .mockResolvedValue({ id: "att_1", url: "/api/files/att_1", mediaType: "image/png", size: 4 }),
+    readAttachment: vi
+      .fn()
+      .mockResolvedValue({ bytes: new Uint8Array([1, 2, 3]), mediaType: "image/png" }),
   } as unknown as MindmapClient;
 }
 
@@ -51,8 +60,10 @@ describe("tool catalogue", () => {
         "publish_map",
         "retry_node",
         "submit_node",
+        "read_attachment",
         "unpublish_map",
         "update_node",
+        "upload_attachment",
       ].sort(),
     );
   });
@@ -62,6 +73,40 @@ describe("tool catalogue", () => {
       expect(t.description.length).toBeGreaterThan(0);
       expect(t.inputSchema).toBeTypeOf("object");
     }
+  });
+
+  it("takes each description from the OpenAPI document, not a local copy", () => {
+    const submit = tool("submit_node");
+    // The document explains the generation gate and the metering; the
+    // hand-written description this replaces said neither.
+    expect(submit.description).toContain("The call BLOCKS");
+    expect(submit.description).toContain("429");
+
+    const expand = tool("auto_expand");
+    expect(expand.description).toContain("does NOT recurse");
+  });
+
+  it("annotates every tool with the title and hints the directories require", () => {
+    for (const t of buildTools()) {
+      expect(t.annotations.title.length).toBeGreaterThan(0);
+      expect(t.annotations.readOnlyHint).toBeTypeOf("boolean");
+      expect(t.annotations.destructiveHint).toBeTypeOf("boolean");
+    }
+  });
+
+  it("states hints per operation instead of deriving them from the HTTP method", () => {
+    // The cases where the method is the wrong signal.
+    expect(tool("publish_map").annotations.destructiveHint).toBe(false);
+    expect(tool("unpublish_map").annotations.destructiveHint).toBe(false);
+    expect(tool("submit_node").annotations.destructiveHint).toBe(false);
+    expect(tool("delete_node").annotations.destructiveHint).toBe(true);
+  });
+
+  it("marks the read tools read-only", () => {
+    for (const name of ["list_maps", "get_map", "get_node", "get_subtree"]) {
+      expect(tool(name).annotations.readOnlyHint).toBe(true);
+    }
+    expect(tool("create_node").annotations.readOnlyHint).toBe(false);
   });
 });
 
@@ -258,5 +303,60 @@ describe("generation tool wiring", () => {
     const client = fakeClient();
     await tool("interrupt_node").handler(client, { mapId: "m1", nodeId: "n1" });
     expect(client.interruptNode).toHaveBeenCalledWith("m1", "n1");
+  });
+});
+
+describe("attachment tool wiring", () => {
+  function scratchFile(name: string, contents: string): string {
+    const path = join(mkdtempSync(join(tmpdir(), "mmio-files-")), name);
+    writeFileSync(path, contents);
+    return path;
+  }
+
+  it("upload_attachment sends the file's bytes, media type and name", async () => {
+    const client = fakeClient();
+    const path = scratchFile("diagram.png", "PNG-BYTES");
+    await tool("upload_attachment").handler(client, { mapId: "m1", path });
+    const [mapId, file] = (client.uploadAttachment as any).mock.calls[0];
+    expect(mapId).toBe("m1");
+    expect(file.mediaType).toBe("image/png");
+    expect(file.filename).toBe("diagram.png");
+    expect(Buffer.from(file.bytes).toString()).toBe("PNG-BYTES");
+  });
+
+  it("upload_attachment infers the media type from the extension, pdf included", async () => {
+    const client = fakeClient();
+    await tool("upload_attachment").handler(client, { mapId: "m1", path: scratchFile("paper.PDF", "%PDF") });
+    expect((client.uploadAttachment as any).mock.calls[0][1].mediaType).toBe("application/pdf");
+  });
+
+  it("upload_attachment refuses a type the API does not accept, and says which it does", async () => {
+    const client = fakeClient();
+    const path = scratchFile("notes.txt", "hello");
+    await expect(tool("upload_attachment").handler(client, { mapId: "m1", path })).rejects.toThrow(
+      /image\/png/,
+    );
+    expect(client.uploadAttachment).not.toHaveBeenCalled();
+  });
+
+  it("read_attachment saves the file locally and reports where it landed", async () => {
+    const client = fakeClient();
+    const destination = join(mkdtempSync(join(tmpdir(), "mmio-files-")), "out.png");
+    const result: any = await tool("read_attachment").handler(client, {
+      attachmentId: "att_1",
+      path: destination,
+    });
+    expect(client.readAttachment).toHaveBeenCalledWith("att_1");
+    expect(result.path).toBe(destination);
+    expect(result.mediaType).toBe("image/png");
+    expect(result.size).toBe(3);
+    expect([...readFileSync(destination)]).toEqual([1, 2, 3]);
+  });
+
+  it("read_attachment defaults to a temp file rather than writing where it was not asked", async () => {
+    const client = fakeClient();
+    const result: any = await tool("read_attachment").handler(client, { attachmentId: "att_1" });
+    expect(result.path.startsWith(tmpdir())).toBe(true);
+    expect([...readFileSync(result.path)]).toEqual([1, 2, 3]);
   });
 });

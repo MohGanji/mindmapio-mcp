@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -14,13 +17,42 @@ async function connect(apiClient: MindmapClient): Promise<Client> {
 }
 
 describe("MCP server", () => {
-  it("advertises one tool per primitive with input schemas", async () => {
+  it("advertises one tool per documented operation, with input schemas", async () => {
     const client = await connect({} as MindmapClient);
     const { tools } = await client.listTools();
-    expect(tools).toHaveLength(15);
+    // 17 operations in the OpenAPI document, 17 tools.
+    expect(tools).toHaveLength(17);
     const map = tools.find((t) => t.name === "get_map")!;
     expect(map.inputSchema).toBeDefined();
     expect(map.inputSchema.properties).toHaveProperty("mapId");
+  });
+
+  it("advertises the annotations both Anthropic directories require", async () => {
+    const client = await connect({} as MindmapClient);
+    const { tools } = await client.listTools();
+    for (const tool of tools) {
+      expect(tool.annotations?.title).toBeTruthy();
+      expect(typeof tool.annotations?.readOnlyHint).toBe("boolean");
+      expect(typeof tool.annotations?.destructiveHint).toBe("boolean");
+    }
+    const subtree = tools.find((t) => t.name === "get_subtree")!;
+    expect(subtree.annotations!.title).toBe("Read a branch");
+    expect(subtree.annotations!.readOnlyHint).toBe(true);
+  });
+
+  it("advertises the document's description, not a local paraphrase", async () => {
+    const client = await connect({} as MindmapClient);
+    const { tools } = await client.listTools();
+    const retry = tools.find((t) => t.name === "retry_node")!;
+    expect(retry.description).toContain("409");
+  });
+
+  it("reports the package's own version, not a second copy of it", async () => {
+    const manifest = JSON.parse(
+      readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "package.json"), "utf8"),
+    );
+    const client = await connect({} as MindmapClient);
+    expect(client.getServerVersion()!.version).toBe(manifest.version);
   });
 
   it("returns the client result as JSON text content", async () => {

@@ -1,5 +1,8 @@
 import {
   ZOOM_LEVELS,
+  type Attachment,
+  type AttachmentDownload,
+  type AttachmentUpload,
   type AutoExpandRequest,
   type AutoExpandResponse,
   type CreateMapRequest,
@@ -119,6 +122,31 @@ export class MindmapClient {
     };
   }
 
+  // --- attachments ---------------------------------------------------------
+
+  /**
+   * Upload one file into a map. The body is the file itself, not a multipart
+   * envelope: one file per request needs none. The name travels percent-encoded
+   * in `X-Filename` because a header cannot carry arbitrary bytes.
+   */
+  uploadAttachment(mapId: string, file: AttachmentUpload): Promise<Attachment> {
+    const headers: Record<string, string> = { "content-type": file.mediaType };
+    if (file.filename) headers["x-filename"] = encodeURIComponent(file.filename);
+    return this.#request<Attachment>("POST", `${this.#mapPath(mapId)}/files`, file.bytes, headers);
+  }
+
+  /** Read an uploaded file back as bytes. Authorization is decided per file. */
+  async readAttachment(attachmentId: string): Promise<AttachmentDownload> {
+    const response = await this.#send("GET", `/api/files/${encodeURIComponent(attachmentId)}`);
+    if (!response.ok) {
+      throw new ApiError(response.status, await this.#parse(response));
+    }
+    return {
+      bytes: new Uint8Array(await response.arrayBuffer()),
+      mediaType: response.headers.get("content-type") ?? "application/octet-stream",
+    };
+  }
+
   // --- nodes (read) -------------------------------------------------------
 
   getNode(mapId: string, nodeId: string): Promise<SubtreeNode> {
@@ -185,24 +213,46 @@ export class MindmapClient {
     return `${this.#mapPath(mapId)}/nodes/${encodeURIComponent(nodeId)}`;
   }
 
-  async #request<T>(method: string, path: string, body?: unknown): Promise<T> {
-    const headers: Record<string, string> = {
-      authorization: `Bearer ${this.#token}`,
-      accept: "application/json",
-    };
-    const init: RequestInit = { method, headers };
-    if (body !== undefined) {
-      headers["content-type"] = "application/json";
-      init.body = JSON.stringify(body);
-    }
-
-    const response = await fetch(`${this.#baseUrl}${path}`, init);
+  async #request<T>(
+    method: string,
+    path: string,
+    body?: unknown,
+    extraHeaders?: Record<string, string>,
+  ): Promise<T> {
+    const response = await this.#send(method, path, body, extraHeaders);
     const payload = await this.#parse(response);
 
     if (!response.ok) {
       throw new ApiError(response.status, payload);
     }
     return payload as T;
+  }
+
+  /**
+   * One authenticated request. A body is JSON unless the caller supplies its own
+   * content-type, which is how a file's raw bytes go up untouched.
+   */
+  #send(
+    method: string,
+    path: string,
+    body?: unknown,
+    extraHeaders?: Record<string, string>,
+  ): Promise<Response> {
+    const headers: Record<string, string> = {
+      authorization: `Bearer ${this.#token}`,
+      accept: "application/json",
+      ...extraHeaders,
+    };
+    const init: RequestInit = { method, headers };
+    if (body !== undefined) {
+      if (headers["content-type"] === undefined) {
+        headers["content-type"] = "application/json";
+        init.body = JSON.stringify(body);
+      } else {
+        init.body = body as RequestInit["body"];
+      }
+    }
+    return fetch(`${this.#baseUrl}${path}`, init);
   }
 
   async #parse(response: Response): Promise<unknown> {

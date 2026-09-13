@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, extname, join } from "node:path";
 import { z } from "zod";
 import type { MindmapClient } from "./client.js";
+import { loadSpec, readOperations, type McpAnnotations } from "./openapi.js";
 import { ZOOM_LEVELS } from "./types.js";
 
 /**
@@ -8,10 +12,32 @@ import { ZOOM_LEVELS } from "./types.js";
  * shape (rendered to JSON Schema by the MCP SDK); `handler` maps validated
  * arguments onto a client call. Handlers take the client as a parameter so the
  * wiring can be tested without a transport or a live server.
+ *
+ * `description` and `annotations` are NOT written here. They come from the
+ * OpenAPI document, which is the enforced contract (ADR 0029) and documents
+ * metering, the generation gate, the 409 on re-expanding and ownership — none
+ * of which the hand-written copies carried. Two hand-maintained descriptions of
+ * one contract is drift waiting to happen.
  */
 export interface ToolDef {
   name: string;
+  operationId: string;
   description: string;
+  annotations: McpAnnotations;
+  inputSchema: z.ZodRawShape;
+  handler: (client: MindmapClient, args: any) => Promise<unknown>;
+}
+
+/**
+ * What this file declares: the wiring for one tool, bound to the operation it
+ * calls. `addendum` is for behaviour that belongs to the *tool* rather than the
+ * endpoint (a minted id, links built client-side, a local file read) — never a
+ * restatement of anything the document already says.
+ */
+interface ToolWiring {
+  name: string;
+  operationId: string;
+  addendum?: string;
   inputSchema: z.ZodRawShape;
   handler: (client: MindmapClient, args: any) => Promise<unknown>;
 }
@@ -23,6 +49,30 @@ function compact<T extends Record<string, unknown>>(obj: T): Partial<T> {
     if (value !== undefined) out[key] = value;
   }
   return out as Partial<T>;
+}
+
+/**
+ * The media types the upload endpoint accepts, keyed by file extension. The API
+ * rejects anything else with a 415, so an unknown extension is worth catching
+ * here where the message can say what is allowed.
+ */
+const UPLOADABLE: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+  ".pdf": "application/pdf",
+};
+
+function mediaTypeOf(path: string): string {
+  const mediaType = UPLOADABLE[extname(path).toLowerCase()];
+  if (!mediaType) {
+    throw new Error(
+      `Cannot upload ${basename(path)}: the API accepts ${[...new Set(Object.values(UPLOADABLE))].join(", ")}.`,
+    );
+  }
+  return mediaType;
 }
 
 const mapId = z.string().describe("The map id.");
@@ -49,31 +99,29 @@ const messages = z
   )
   .describe("Node content as a UIMessage array (e.g. one user turn with text parts).");
 
-export function buildTools(): ToolDef[] {
+function wiring(): ToolWiring[] {
   return [
     {
       name: "list_maps",
-      description: "List the authenticated user's maps (metadata only, newest first).",
+      operationId: "listMindmaps",
       inputSchema: {},
       handler: (client) => client.listMaps(),
     },
     {
       name: "get_map",
-      description: "Read one full map including its complete node tree.",
+      operationId: "getMindmap",
       inputSchema: { mapId },
       handler: (client, args) => client.getMap(args.mapId),
     },
     {
       name: "get_node",
-      description:
-        "Read a single node without its descendants. Its children field still lists child ids for navigation.",
+      operationId: "getNode",
       inputSchema: { mapId, nodeId },
       handler: (client, args) => client.getNode(args.mapId, args.nodeId),
     },
     {
       name: "get_subtree",
-      description:
-        "Read a node and its descendants as a nested tree. Omit depth for the full subtree; 0 returns just the node.",
+      operationId: "getSubtree",
       inputSchema: {
         mapId,
         nodeId,
@@ -88,8 +136,7 @@ export function buildTools(): ToolDef[] {
     },
     {
       name: "create_map",
-      description:
-        "Create a map owned by the token's user. Pass an initial node tree in data so node primitives have a parent.",
+      operationId: "createMap",
       inputSchema: {
         title: z.string().optional().describe("The map title."),
         kind: z.string().optional().describe("The map kind (defaults to mindmap)."),
@@ -108,14 +155,15 @@ export function buildTools(): ToolDef[] {
     },
     {
       name: "delete_map",
-      description: "Delete a map and all of its nodes.",
+      operationId: "deleteMap",
       inputSchema: { mapId },
       handler: (client, args) => client.deleteMap(args.mapId),
     },
     {
       name: "publish_map",
-      description:
-        "Publish a map so it has a public, shareable link, and return its viewer + embed URLs. Owner-only; re-publishing reuses the existing public id. Optionally set the semantic zoom level and canvas zoom the links open at ('keyword' opens a large reference map zoomed-out).",
+      operationId: "publishMap",
+      addendum:
+        "This tool does both halves in one call: it publishes, then returns the ready-to-use links as {publicId, viewerUrl, embedUrl}, framed by the zoom and cz you pass.",
       inputSchema: {
         mapId,
         zoom: z
@@ -136,15 +184,15 @@ export function buildTools(): ToolDef[] {
     },
     {
       name: "unpublish_map",
-      description:
-        "Unpublish a map: flip it back to private, which immediately 404s every public/embed link. The public id is retained for if you re-publish.",
+      operationId: "unpublishMap",
       inputSchema: { mapId },
       handler: (client, args) => client.unpublishMap(args.mapId),
     },
     {
       name: "create_node",
-      description:
-        "Create a structural node under a parent. nodeId is optional; a uuid is minted when omitted so you can reference ids you choose.",
+      operationId: "createNode",
+      addendum:
+        "nodeId is optional here: a uuid is minted when you omit it, so a whole branch can be laid out in one pass against ids you chose.",
       inputSchema: {
         mapId,
         nodeId: z
@@ -177,8 +225,7 @@ export function buildTools(): ToolDef[] {
     },
     {
       name: "update_node",
-      description:
-        "Apply a structural update to a node (content, note, type, collapsed flag, model). No LLM call, no metering.",
+      operationId: "updateNode",
       inputSchema: {
         mapId,
         nodeId,
@@ -205,14 +252,13 @@ export function buildTools(): ToolDef[] {
     },
     {
       name: "delete_node",
-      description: "Delete a node and all of its descendants (cascade). The root node cannot be deleted.",
+      operationId: "deleteNode",
       inputSchema: { mapId, nodeId },
       handler: (client, args) => client.deleteNode(args.mapId, args.nodeId),
     },
     {
       name: "submit_node",
-      description:
-        "Run the LLM on a node and return the completed node. Blocks until ancestors finish; metered.",
+      operationId: "submitNode",
       inputSchema: {
         mapId,
         nodeId,
@@ -227,8 +273,7 @@ export function buildTools(): ToolDef[] {
     },
     {
       name: "auto_expand",
-      description:
-        "Generate follow-up prompts as queued child nodes and return their ids. One level only; submit each child yourself.",
+      operationId: "autoExpandNode",
       inputSchema: {
         mapId,
         nodeId,
@@ -240,8 +285,7 @@ export function buildTools(): ToolDef[] {
     },
     {
       name: "retry_node",
-      description:
-        "Clear a node's error state and re-run its generation. Retrying an expand node with children needs force=true.",
+      operationId: "retryNode",
       inputSchema: {
         mapId,
         nodeId,
@@ -260,10 +304,101 @@ export function buildTools(): ToolDef[] {
     },
     {
       name: "interrupt_node",
-      description:
-        "Stop an in-flight generation; a generating or queued node flips to interrupted with partial output preserved. Idempotent.",
+      operationId: "interruptNode",
       inputSchema: { mapId, nodeId },
       handler: (client, args) => client.interruptNode(args.mapId, args.nodeId),
     },
+    {
+      name: "upload_attachment",
+      operationId: "uploadAttachment",
+      addendum:
+        "Give this tool a path to a file on this machine; it reads the bytes and sends them. The media type comes from the extension (.png, .jpg/.jpeg, .webp, .gif, .pdf).",
+      inputSchema: {
+        mapId,
+        path: z.string().describe("Path to the file on this machine."),
+        filename: z
+          .string()
+          .optional()
+          .describe("Name to store it under; the file's own name is used when omitted."),
+      },
+      // async so a rejected file type surfaces as a rejected promise, matching
+      // every other handler, rather than throwing before one exists.
+      handler: async (client, args) =>
+        client.uploadAttachment(args.mapId, {
+          bytes: readFileSync(args.path),
+          mediaType: mediaTypeOf(args.path),
+          filename: args.filename ?? basename(args.path),
+        }),
+    },
+    {
+      name: "read_attachment",
+      operationId: "readAttachment",
+      addendum:
+        "This tool saves the bytes to a file on this machine and returns where it landed, so a large image or PDF is opened with your own file tools instead of being inlined. Without a path it writes to a temporary file.",
+      inputSchema: {
+        attachmentId: z
+          .string()
+          .describe("The attachment id (the last segment of the attachment's url)."),
+        path: z
+          .string()
+          .optional()
+          .describe("Where to save it; a temporary file is used when omitted."),
+      },
+      handler: async (client, args) => {
+        const { bytes, mediaType } = await client.readAttachment(args.attachmentId);
+        const path =
+          args.path ?? join(mkdtempSync(join(tmpdir(), "mindmapio-")), args.attachmentId);
+        writeFileSync(path, bytes);
+        return { attachmentId: args.attachmentId, mediaType, size: bytes.byteLength, path };
+      },
+    },
   ];
+}
+
+/**
+ * Build the tool list: local wiring (name, Zod schema, handler) joined to the
+ * OpenAPI document (description, title, hints).
+ *
+ * The join is total in both directions and throws when it is not. An operation
+ * with no tool is a capability agents cannot reach; a tool naming an operation
+ * the document does not describe is a tool nobody reviewed. Both are the drift
+ * this generation exists to remove, so neither is allowed to pass quietly.
+ */
+export function buildTools(spec: unknown = loadSpec()): ToolDef[] {
+  const operations = readOperations(spec);
+  const tools = wiring();
+
+  const unknown = tools.filter((tool) => !operations.has(tool.operationId));
+  if (unknown.length > 0) {
+    throw new Error(
+      `These tools name an operation the OpenAPI document does not describe: ${unknown
+        .map((tool) => `${tool.name} -> ${tool.operationId}`)
+        .join(", ")}.`,
+    );
+  }
+
+  const covered = new Set(tools.map((tool) => tool.operationId));
+  const uncovered = [...operations.keys()].filter((operationId) => !covered.has(operationId));
+  if (uncovered.length > 0) {
+    throw new Error(
+      `The OpenAPI document describes operations with no MCP tool: ${uncovered.join(", ")}. ` +
+        "Every documented operation is part of the agent contract; add a tool or stop documenting it.",
+    );
+  }
+
+  return tools.map(({ name, operationId, addendum, inputSchema, handler }) => {
+    const { description, ...annotations } = operations.get(operationId)!;
+    return {
+      name,
+      operationId,
+      description: addendum ? `${description}\n\n${addendum}` : description,
+      annotations: {
+        title: annotations.title,
+        readOnlyHint: annotations.readOnlyHint,
+        destructiveHint: annotations.destructiveHint,
+      },
+      inputSchema,
+      handler,
+    };
+  });
 }
