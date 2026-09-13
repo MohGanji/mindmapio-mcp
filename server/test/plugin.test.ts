@@ -30,10 +30,13 @@ describe("plugin manifests", () => {
     expect(field.required).toBe(true);
   });
 
-  it("runs the published package, so the connector matches the documented install", () => {
+  it("runs this repo's own package, so the connector matches the documented install", () => {
+    // Asserted against package.json rather than a literal, so transferring the
+    // repo to another owner is a one-line change and not a hunt.
+    const slug = /github\.com\/(.+?)(?:\.git)?$/.exec(pkg.repository.url)?.[1];
     const server = connector.mcpServers.mindmapio;
     expect(server.command).toBe("npx");
-    expect(server.args).toContain("github:MohGanji/mindmapio-mcp");
+    expect(server.args).toContain(`github:${slug}`);
   });
 
   it("offers itself from its own marketplace, at the repo root", () => {
