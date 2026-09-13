@@ -181,6 +181,12 @@ npm run sync:openapi && git diff --exit-code server/spec
 
 It fetches the published document on purpose, never a local checkout of the API repo, which can hold unpushed edits that would ship a tool list nobody can reach. It refuses to write a document whose operations are missing their `x-mcp` annotations (`title`, `readOnlyHint`, `destructiveHint`), because a tool without them is a rejection criterion for Anthropic's directories, and leaves the vendored copy untouched in that case.
 
+### The skill is held to the same document
+
+`buildTools` joins the tool list to that document in both directions, and `server/test/skill-parity.test.ts` joins [`skills/mindmapio/SKILL.md`](skills/mindmapio/SKILL.md) to it the same way: every documented operation has to be named, called in a worked example, and taught with the query or header inputs and the operation-specific failures (a `409`, a `413`, a `429`) the document declares for it — and a section teaching an endpoint the document does not describe fails too. That is the third leg of [ADR 0029](https://github.com/MohGanji/mindmap/blob/main/docs/adr/0029-agent-discovery-surfaces.md)'s parity invariant, unenforced until the skill had quietly drifted to 15 of 17 operations.
+
+Editing that skill is half a change: mindmap.io serves a mirror of it with a SHA-256 digest, so `marketing/scripts/sync-agent-skills.mjs` has to be re-run there once the edit is pushed here.
+
 ## License
 
 [MIT](LICENSE)

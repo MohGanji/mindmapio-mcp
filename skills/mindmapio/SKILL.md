@@ -2,14 +2,16 @@
 name: mindmapio
 description: >
   Drive Mindmap.io maps directly over its HTTP node API: list and
-  read maps, build node subtrees with client-minted ids, and run the generative
-  node operations (submit, auto-expand, retry, interrupt). Use when the user
-  wants to create or grow a mindmap.io map, run prompts on nodes, fan a node out
-  into follow-ups, or read a map/branch programmatically without the MCP server.
+  read maps, build node subtrees with client-minted ids, attach images and PDFs
+  to nodes, and run the generative node operations (submit, auto-expand, retry,
+  interrupt). Use when the user wants to create or grow a mindmap.io map, run
+  prompts on nodes, fan a node out into follow-ups, or read a map/branch
+  programmatically without the MCP server.
 trigger: >
   User asks to build, read, or generate on a mindmap.io map from an agent — e.g.
-  "create a map", "add a node and run it", "auto-expand this node", "read my
-  map" — and prefers calling the API directly over installing the MCP server.
+  "create a map", "add a node and run it", "auto-expand this node", "put this
+  screenshot on the map", "read my map" — and prefers calling the API directly
+  over installing the MCP server.
 ---
 
 # Drive Mindmap.io maps via the node API
@@ -106,7 +108,7 @@ mm /api/mindmaps -X POST -d '{
 }'
 ```
 
-**Create a node** — `POST /api/mindmaps/{mapId}/nodes` with `{nodeId, parentId, position?, data?}`. `nodeId` must be unique within the map; mint a uuid yourself. `data` may carry `{messages, note, node_type}`, where `messages` is the node's content as a UIMessage array. The node is born structural (a draft); running it is a separate generative call. → `201` full node.
+**Create a node** — `POST /api/mindmaps/{mapId}/nodes` with `{nodeId, parentId, position?, data?}`. `nodeId` must be unique within the map; mint a uuid yourself, since reusing one returns `409`. `data` may carry `{messages, note, node_type}`, where `messages` is the node's content as a UIMessage array. The node is born structural (a draft); running it is a separate generative call. → `201` full node.
 
 ```bash
 mm /api/mindmaps/MAP_ID/nodes -X POST -d '{
@@ -152,12 +154,70 @@ mm /api/mindmaps/MAP_ID/nodes/q1 -X DELETE
 mm /api/mindmaps/MAP_ID -X DELETE
 ```
 
+### Attachments
+
+A node can carry images and PDFs alongside its text. It is two steps: send the
+bytes to the map, then reference the returned url from a node message. Nothing
+here is metered and no model runs on your budget.
+
+**Upload a file** — `POST /api/mindmaps/{mapId}/files`. The body is the file
+itself, not a multipart envelope: set `Content-Type` to the file's own media
+type and put its percent-encoded name in `X-Filename`. → `201 {id, url,
+mediaType, filename, size, altText}`. Accepts `image/png`, `image/jpeg`,
+`image/webp`, `image/gif` and `application/pdf`, up to 10 MB each and 5 per
+node. A larger file returns `413`, any other type `415`.
+
+This call sets its own headers, so use `curl` directly rather than the JSON `mm`
+alias:
+
+```bash
+curl -sS -X POST "$MINDMAP_API_BASE_URL/api/mindmaps/MAP_ID/files" \
+  -H "Authorization: Bearer $MINDMAP_API_TOKEN" \
+  -H "Content-Type: image/png" \
+  -H "X-Filename: diagram.png" \
+  --data-binary @diagram.png
+# → {"id":"att_9f2c1d4e","url":"/api/files/att_9f2c1d4e","mediaType":"image/png",
+#    "filename":"diagram.png","size":81234,"altText":"A flowchart of the pipeline…"}
+```
+
+Attach it by appending a `file` part to the node's user message, through create
+or update node. The `url` the upload returned is what goes in it:
+
+```bash
+mm /api/mindmaps/MAP_ID/nodes -X POST -d '{
+  "nodeId": "d2",
+  "parentId": "root",
+  "data": {
+    "messages": [{ "role": "user", "parts": [
+      { "type": "text", "text": "The pipeline we are discussing." },
+      { "type": "file", "mediaType": "image/png", "filename": "diagram.png", "url": "/api/files/att_9f2c1d4e" }
+    ] }],
+    "node_type": "data"
+  }
+}'
+```
+
+An image is described by the house model as it is uploaded, and that `altText`
+is what a model without vision reads in the picture's place. So an attachment
+is usable as context for everything below it without any further step.
+
+**Read a file** — `GET /api/files/{attachmentId}` → the raw bytes. Whoever may
+read the map may read its files: a published map's attachments are public, the
+same file on a private map is owner-only. Save it to disk rather than piping it
+into your context — it is an image or a PDF, not JSON.
+
+```bash
+mm /api/files/att_9f2c1d4e -o diagram.png
+```
+
 ### Generative
 
-**Submit a node** — `POST /api/mindmaps/{mapId}/nodes/{nodeId}/submit` with optional `{prompt?, modelId?}`. Runs the LLM and **blocks** until no ancestor is still generating, then returns the completed node `{nodeId, status, messages}`. `prompt` supplies the user text when the node has none yet; omit it to run the stored text. `modelId` overrides the house model. Metered; over budget returns `429`.
+**Submit a node** — `POST /api/mindmaps/{mapId}/nodes/{nodeId}/submit?force=true` with optional `{prompt?, modelId?}`. Runs the LLM and **blocks** until no ancestor is still generating, then returns the completed node `{nodeId, status, messages}`. `prompt` supplies the user text when the node has none yet; omit it to run the stored text. `modelId` overrides the house model. Submitting a node that already has children returns `409` — re-running it would invalidate the conversations hanging below it — and `force=true` lifts that for an expand node only, deleting its fan-out first. Metered; over budget returns `429`.
 
 ```bash
 mm /api/mindmaps/MAP_ID/nodes/q1/submit -X POST -d '{}'
+# re-run an expand node that has already fanned out, discarding its children
+mm "/api/mindmaps/MAP_ID/nodes/q1/submit?force=true" -X POST -d '{}'
 ```
 
 **Auto-expand a node** — `POST /api/mindmaps/{mapId}/nodes/{nodeId}/auto-expand` with optional `{count?, direction?}` (`count` 1–4, default 2). Generates follow-up prompts as `queued` child nodes and returns `{nodeId, childIds}`. **One level only** — it does NOT run the children. Metered; over budget `429`.
@@ -196,6 +256,10 @@ mm /api/mindmaps/MAP_ID/publish -X POST
 **Unpublish a map** — `DELETE /api/mindmaps/{mapId}/publish`. Flips back to
 private, which immediately `404`s every public/embed link (the revoke
 mechanism). The public id is retained for re-publishing. → `{success:true}`.
+
+```bash
+mm /api/mindmaps/MAP_ID/publish -X DELETE
+```
 
 Build the shareable links from the `publicId`. The query frames the map on first
 paint: `node=root`, the semantic `zoom` level (`full` default; `keyword`/`phrase`
@@ -243,8 +307,8 @@ context.
 
 Responses carry `{error}` on failure. Common statuses: `401` (no/revoked
 token), `403` (not the token user's map), `404` (missing map/parent/node), `400`
-(malformed, or deleting the root), `409` (duplicate node id, or re-expanding
-without `force`), `429` (over budget — body carries an upgrade/buy-credits CTA).
+(malformed, or deleting the root), `409` (duplicate node id, or re-running a
+node that already has children without `force`), `429` (over budget — body carries an upgrade/buy-credits CTA).
 On `429`, stop generating and surface the CTA rather than retrying blindly.
 
 ## Hello world
