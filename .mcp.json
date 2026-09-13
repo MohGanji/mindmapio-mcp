@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "mindmapio": {
+      "command": "npx",
+      "args": ["-y", "github:MohGanji/mindmapio-mcp"],
+      "env": {
+        "MINDMAP_API_TOKEN": "${user_config.api_token}"
+      }
+    }
+  }
+}

@@ -4,10 +4,11 @@
 
 Give your AI agent a place to build and keep what it learns. Connect it to [mindmap.io](https://mindmap.io) and it turns research, plans, and conversations into a real map you can open, grow, and share. Your agent reads existing maps, adds and edits nodes, runs prompts on them, and fans any topic out into follow-up questions, all through your own mindmap.io account.
 
-Two ways to set it up:
+Three ways to set it up:
 
-1. **MCP server.** One line in your MCP client config (Claude Desktop, Cursor, and other MCP clients).
-2. **Agent skill.** Install it with `npx skills` so your agent works with mindmap.io directly, no MCP client needed.
+1. **Claude plugin.** One install command and one masked prompt for your token.
+2. **MCP server.** One line in your MCP client config (Claude Desktop, Cursor, and other MCP clients).
+3. **Agent skill.** Install it with `npx skills` so your agent works with mindmap.io directly, no MCP client needed.
 
 ## Get a token
 
@@ -15,11 +16,22 @@ Every call uses a personal access token from your account.
 
 1. Open mindmap.io, go to settings, then API access.
 2. Generate a token and copy it. You only see it once.
-3. Save it as `MINDMAP_API_TOKEN`, or paste it into your MCP client config.
+3. Save it as `MINDMAP_API_TOKEN`, or paste it into the plugin's token prompt.
 
 The token acts as you. Regenerate it any time and the old one stops working instantly.
 
-## Option 1: MCP server
+## Option 1: Claude plugin
+
+```
+/plugin marketplace add MohGanji/mindmapio-mcp
+/plugin install mindmapio@mindmap-io
+```
+
+Claude Code prompts for your API token, masks it, and stores it in your OS keychain. Restart, and the tools are live. [`SETUP.md`](SETUP.md) walks Claude through the same steps, and through what to check when something does not connect.
+
+The plugin ships the MCP server, a skill on how to shape a map well, and the direct-HTTP skill below. No slash commands and no sub-agents.
+
+## Option 2: MCP server
 
 Add this to your MCP client config. `npx` fetches and runs the package for you:
 
@@ -54,6 +66,8 @@ The first run builds from source, so it takes a few extra seconds. Later runs ar
 
 ### What your agent can do
 
+Seventeen tools, one per operation in the [Mindmap.io node API](https://mindmap.io/api/openapi.json).
+
 | Tool | What it does |
 | --- | --- |
 | `list_maps` | List your maps, newest first. |
@@ -71,18 +85,25 @@ The first run builds from source, so it takes a few extra seconds. Later runs ar
 | `auto_expand` | Turn a node into follow-up questions for your agent to run. |
 | `retry_node` | Re-run a node that failed. |
 | `interrupt_node` | Stop a node that is still running. |
+| `upload_attachment` | Upload an image or PDF from this machine to attach to a node. |
+| `read_attachment` | Save an uploaded file back to this machine. |
 
 `create_node` mints a node id for you when you leave it out, so your agent can lay out a whole branch in one pass.
 
-## Option 2: agent skill
+Each tool's description and its `title` / `readOnlyHint` / `destructiveHint` annotations are generated from the OpenAPI document rather than written here, so what your agent reads is the contract the API enforces. See [Regenerating the tool list](#regenerating-the-tool-list).
 
-Install the skill with one command:
+## Option 3: agent skills
+
+Install the skills with one command:
 
 ```bash
 npx skills add MohGanji/mindmapio-mcp
 ```
 
-This works with Claude Code and other agents that support skills (browse them at [skills.sh](https://www.skills.sh)). It teaches your agent the same actions over plain HTTP, including how to expand a node into follow-up questions and run each one. You can also read it directly at [`skills/mindmapio/SKILL.md`](skills/mindmapio/SKILL.md).
+This works with Claude Code and other agents that support skills (browse them at [skills.sh](https://www.skills.sh)). Two skills ship here:
+
+- [`skills/mindmapio/SKILL.md`](skills/mindmapio/SKILL.md) teaches the same actions over plain HTTP, no MCP client required.
+- [`skills/map-shaping/SKILL.md`](skills/map-shaping/SKILL.md) teaches how to shape a map: what belongs in the root node, when to branch versus append, and when to fan out.
 
 Set your token first:
 
@@ -120,17 +141,45 @@ The skill at [`skills/mindmapio/SKILL.md`](skills/mindmapio/SKILL.md) shows the 
 
 ## Keep your token safe
 
-- Never commit your token. Keep it in your MCP client config or an environment variable.
+- Never commit your token. Keep it in the plugin's token prompt, your MCP client config, or an environment variable.
 - It is sent only as the `Authorization` header and is never logged. Config and error messages carry no secret.
 - Treat it like a password. If it leaks, regenerate it in settings and the old one stops working right away.
+
+## Layout
+
+```
+.claude-plugin/   plugin.json and the self-hosted marketplace manifest
+.mcp.json         the plugin's connector: the stdio server below, token from userConfig
+skills/           the agent skills, also what `npx skills add` installs
+server/           the stdio MCP server (src, tests, and the vendored OpenAPI document)
+SETUP.md          first-install instructions for Claude
+```
+
+The root `package.json` is the server's, so `npx -y github:MohGanji/mindmapio-mcp` still resolves: it builds `server/dist` and runs it.
 
 ## Develop
 
 ```bash
 npm install
 npm test        # vitest against a mocked HTTP layer, no live backend needed
-npm run build   # tsc -> dist/
+npm run build   # tsc -> server/dist/
 ```
+
+### Regenerating the tool list
+
+Tool descriptions and annotations come from `server/spec/openapi.json`, a vendored mirror of the published [`https://mindmap.io/api/openapi.json`](https://mindmap.io/api/openapi.json). Refresh it with:
+
+```bash
+npm run sync:openapi
+```
+
+Drift is checkable in one line:
+
+```bash
+npm run sync:openapi && git diff --exit-code server/spec
+```
+
+It fetches the published document on purpose, never a local checkout of the API repo, which can hold unpushed edits that would ship a tool list nobody can reach. It refuses to write a document whose operations are missing their `x-mcp` annotations (`title`, `readOnlyHint`, `destructiveHint`), because a tool without them is a rejection criterion for Anthropic's directories, and leaves the vendored copy untouched in that case.
 
 ## License
 

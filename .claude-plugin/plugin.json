@@ -1,0 +1,29 @@
+{
+  "name": "mindmapio",
+  "displayName": "Mindmap.io",
+  "description": "Build and grow mindmap.io maps from Claude: create maps, add and run nodes, fan topics out into follow-ups, and publish a shareable link.",
+  "version": "0.2.0",
+  "author": {
+    "name": "Mohammad Ganji",
+    "url": "https://github.com/MohGanji"
+  },
+  "homepage": "https://mindmap.io",
+  "repository": "https://github.com/MohGanji/mindmapio-mcp",
+  "license": "MIT",
+  "keywords": [
+    "mindmap",
+    "research",
+    "notes",
+    "knowledge",
+    "mcp"
+  ],
+  "userConfig": {
+    "api_token": {
+      "type": "string",
+      "title": "Mindmap.io API token",
+      "description": "From mindmap.io settings, API access. Shown once when you generate it.",
+      "sensitive": true,
+      "required": true
+    }
+  }
+}

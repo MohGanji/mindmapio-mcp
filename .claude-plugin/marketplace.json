@@ -1,0 +1,17 @@
+{
+  "name": "mindmap-io",
+  "description": "Mindmap.io's own plugin marketplace.",
+  "owner": {
+    "name": "Mohammad Ganji",
+    "url": "https://github.com/MohGanji"
+  },
+  "plugins": [
+    {
+      "name": "mindmapio",
+      "source": "./",
+      "description": "Build and grow mindmap.io maps from Claude: create maps, add and run nodes, fan topics out into follow-ups, and publish a shareable link.",
+      "category": "productivity",
+      "tags": ["mindmap", "research", "notes", "knowledge"]
+    }
+  ]
+}
