@@ -396,3 +396,15 @@ describe("attachments", () => {
     await expect(makeClient().readAttachment("att_1")).rejects.toBeInstanceOf(ApiError);
   });
 });
+
+describe("submit force", () => {
+  it("sends ?force=true only when asked", async () => {
+    mockNext(jsonResponse({ nodeId: "n1", status: "complete", messages: [] }));
+    await makeClient().submitNode("m1", "n1", {}, { force: true });
+    expect(captured[0].url).toBe("https://api.example.test/api/mindmaps/m1/nodes/n1/submit?force=true");
+
+    mockNext(jsonResponse({ nodeId: "n1", status: "complete", messages: [] }));
+    await makeClient().submitNode("m1", "n1");
+    expect(captured[1].url).toBe("https://api.example.test/api/mindmaps/m1/nodes/n1/submit");
+  });
+});

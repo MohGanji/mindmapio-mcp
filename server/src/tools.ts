@@ -267,9 +267,18 @@ function wiring(): ToolWiring[] {
           .optional()
           .describe("The node's user text when it has not been persisted yet; omit to run stored text."),
         modelId: z.string().optional().describe("Override the model (must be an exposed model)."),
+        force: z
+          .boolean()
+          .optional()
+          .describe("Delete an expand node's existing children before re-running it, instead of failing with 409."),
       },
       handler: (client, args) =>
-        client.submitNode(args.mapId, args.nodeId, compact({ prompt: args.prompt, modelId: args.modelId })),
+        client.submitNode(
+          args.mapId,
+          args.nodeId,
+          compact({ prompt: args.prompt, modelId: args.modelId }),
+          compact({ force: args.force }),
+        ),
     },
     {
       name: "auto_expand",

@@ -174,8 +174,18 @@ export class MindmapClient {
 
   // --- generation ---------------------------------------------------------
 
-  submitNode(mapId: string, nodeId: string, body: SubmitNodeRequest = {}): Promise<SubmitNodeResponse> {
-    return this.#request<SubmitNodeResponse>("POST", `${this.#nodePath(mapId, nodeId)}/submit`, body);
+  submitNode(
+    mapId: string,
+    nodeId: string,
+    body: SubmitNodeRequest = {},
+    options: { force?: boolean } = {},
+  ): Promise<SubmitNodeResponse> {
+    const query = options.force ? "?force=true" : "";
+    return this.#request<SubmitNodeResponse>(
+      "POST",
+      `${this.#nodePath(mapId, nodeId)}/submit${query}`,
+      body,
+    );
   }
 
   autoExpand(mapId: string, nodeId: string, body: AutoExpandRequest = {}): Promise<AutoExpandResponse> {

@@ -95,11 +95,13 @@ describe("tool catalogue", () => {
   });
 
   it("states hints per operation instead of deriving them from the HTTP method", () => {
-    // The cases where the method is the wrong signal.
+    // The cases where the method is the wrong signal: a POST that destroys
+    // nothing, a DELETE that is reversible, a POST that can cascade, and a
+    // PATCH that overwrites.
     expect(tool("publish_map").annotations.destructiveHint).toBe(false);
     expect(tool("unpublish_map").annotations.destructiveHint).toBe(false);
-    expect(tool("submit_node").annotations.destructiveHint).toBe(false);
-    expect(tool("delete_node").annotations.destructiveHint).toBe(true);
+    expect(tool("retry_node").annotations.destructiveHint).toBe(true);
+    expect(tool("update_node").annotations.destructiveHint).toBe(true);
   });
 
   it("marks the read tools read-only", () => {
@@ -263,6 +265,12 @@ describe("generation tool wiring", () => {
     expect(client.deleteNode).toHaveBeenCalledWith("m1", "n1");
   });
 
+  it("submit_node forwards the force flag the document advertises", async () => {
+    const client = fakeClient();
+    await tool("submit_node").handler(client, { mapId: "m1", nodeId: "n1", force: true });
+    expect(client.submitNode).toHaveBeenCalledWith("m1", "n1", {}, { force: true });
+  });
+
   it("submit_node forwards prompt and modelId", async () => {
     const client = fakeClient();
     await tool("submit_node").handler(client, {
@@ -271,7 +279,7 @@ describe("generation tool wiring", () => {
       prompt: "go",
       modelId: "x",
     });
-    expect(client.submitNode).toHaveBeenCalledWith("m1", "n1", { prompt: "go", modelId: "x" });
+    expect(client.submitNode).toHaveBeenCalledWith("m1", "n1", { prompt: "go", modelId: "x" }, {});
   });
 
   it("auto_expand forwards count and direction", async () => {

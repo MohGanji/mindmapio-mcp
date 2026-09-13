@@ -12,7 +12,8 @@ describe("readOperations", () => {
     expect(op).toBeDefined();
     expect(op!.title).toBe("Submit a node");
     expect(op!.readOnlyHint).toBe(false);
-    expect(op!.destructiveHint).toBe(false);
+    // Submitting a node that already has children can cascade them away.
+    expect(op!.destructiveHint).toBe(true);
     // The document's description is the reason it is the source: it documents
     // the blocking gate and the metering that the hand-written copy omitted.
     expect(op!.description).toContain("The call BLOCKS");

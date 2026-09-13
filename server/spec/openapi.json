@@ -612,11 +612,11 @@
           "generation"
         ],
         "summary": "Submit a node and get the completed node back",
-        "description": "Runs the LLM on a node and returns the completed node — the first generative operation. The call BLOCKS: it waits until no ancestor is still generating (the generation gate, so the response always sees complete ancestor context and never races a parent that is mid-stream), then runs the generation to completion server-side and returns the finished node. Metered by the usage gate against the token's user once the generation gate clears; over budget returns 429. Ownership is enforced.\n",
+        "description": "Runs the LLM on a node and returns the completed node — the first generative operation. The call BLOCKS: it waits until no ancestor is still generating (the generation gate, so the response always sees complete ancestor context and never races a parent that is mid-stream), then runs the generation to completion server-side and returns the finished node. Metered by the usage gate against the token's user once the generation gate clears; over budget returns 429. Submitting a node that already has children is refused with 409 (regenerating it would invalidate the descendant conversation paths) unless it is an expand node and `force=true`, which deletes those children first via the structural cascade. Ownership is enforced.\n",
         "x-mcp": {
           "title": "Submit a node",
           "readOnlyHint": false,
-          "destructiveHint": false
+          "destructiveHint": true
         },
         "parameters": [
           {
@@ -624,6 +624,9 @@
           },
           {
             "$ref": "#/components/parameters/NodeId"
+          },
+          {
+            "$ref": "#/components/parameters/ForceExpand"
           }
         ],
         "requestBody": {
@@ -658,6 +661,9 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
           },
           "429": {
             "$ref": "#/components/responses/RateLimited"
@@ -743,13 +749,7 @@
             "$ref": "#/components/parameters/NodeId"
           },
           {
-            "name": "force",
-            "in": "query",
-            "required": false,
-            "description": "When true, delete an expand node's existing children before retrying instead of returning 409.\n",
-            "schema": {
-              "type": "boolean"
-            }
+            "$ref": "#/components/parameters/ForceExpand"
           }
         ],
         "requestBody": {
@@ -925,6 +925,15 @@
         "description": "The node ID (unprefixed, as returned in node trees).",
         "schema": {
           "type": "string"
+        }
+      },
+      "ForceExpand": {
+        "name": "force",
+        "in": "query",
+        "required": false,
+        "description": "When true, delete an expand node's existing children before re-running it, instead of returning 409.\n",
+        "schema": {
+          "type": "boolean"
         }
       }
     },
