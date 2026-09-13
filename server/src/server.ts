@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { realpathSync } from "node:fs";
 import { argv } from "node:process";
 import { pathToFileURL } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -51,9 +52,27 @@ async function main(): Promise<void> {
   await server.connect(transport);
 }
 
-const isDirectRun = argv[1] !== undefined && import.meta.url === pathToFileURL(argv[1]).href;
+/**
+ * Whether `moduleUrl` is the module the process was started on.
+ *
+ * The entry path has to be resolved through symlinks first. Every documented
+ * install runs this package through a `node_modules/.bin` symlink (`npx -y
+ * github:MohGanji/mindmapio-mcp`, `claude mcp add ... -- npx ...`, the plugin's
+ * `.mcp.json`), and Node reports the *link* in `argv[1]` while `import.meta.url`
+ * always carries the *real* path. Comparing the two raw makes the entry check
+ * false and the server silently never starts — no output, exit code 0.
+ */
+export function isEntryModule(moduleUrl: string, entryPath: string | undefined): boolean {
+  if (entryPath === undefined) return false;
+  try {
+    return moduleUrl === pathToFileURL(realpathSync(entryPath)).href;
+  } catch {
+    // An entry path we cannot resolve is not this module.
+    return false;
+  }
+}
 
-if (isDirectRun) {
+if (isEntryModule(import.meta.url, argv[1])) {
   main().catch((err) => {
     // Never log the token; ApiError and config errors carry no secret.
     process.stderr.write(`mindmapio-mcp failed to start: ${formatError(err)}\n`);
