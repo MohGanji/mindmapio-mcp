@@ -108,7 +108,7 @@ mm /api/mindmaps -X POST -d '{
 }'
 ```
 
-**Create a node** — `POST /api/mindmaps/{mapId}/nodes` with `{nodeId, parentId, position?, data?}`. `nodeId` must be unique within the map; mint a uuid yourself, since reusing one returns `409`. `data` may carry `{messages, note, node_type}`, where `messages` is the node's content as a UIMessage array. The node is born structural (a draft); running it is a separate generative call. → `201` full node.
+**Create a node** — `POST /api/mindmaps/{mapId}/nodes` with `{nodeId, parentId, position?, data?}`. `nodeId` must be unique within the map; mint a uuid yourself, since reusing one returns `409`. `data` may carry `{messages, note, node_type, color}`, where `messages` is the node's content as a UIMessage array. The node is born structural (a draft); running it is a separate generative call. → `201` full node.
 
 ```bash
 mm /api/mindmaps/MAP_ID/nodes -X POST -d '{
@@ -134,7 +134,7 @@ mm /api/mindmaps/MAP_ID/nodes -X POST -d '{
 }'
 ```
 
-**Update a node** — `PATCH /api/mindmaps/{mapId}/nodes/{nodeId}` with any subset of `{messages, note, node_type, is_collapsed, model_provider, model_id}`. Send `messages` to replace the node's content. Pure tree mutation, no LLM call, no metering. → `200 {success}`.
+**Update a node** — `PATCH /api/mindmaps/{mapId}/nodes/{nodeId}` with any subset of `{messages, note, node_type, is_collapsed, model_provider, model_id, color}`. Send `messages` to replace the node's content. Pure tree mutation, no LLM call, no metering. → `200 {success}`.
 
 ```bash
 mm /api/mindmaps/MAP_ID/nodes/q1 -X PATCH -d '{
@@ -153,6 +153,33 @@ mm /api/mindmaps/MAP_ID/nodes/q1 -X DELETE
 ```bash
 mm /api/mindmaps/MAP_ID -X DELETE
 ```
+
+### Node color
+
+A node card can carry one of eight pastel tints. Set `color` in `data` on
+create or at the top level on update: `rose`, `pink`, `amber`, `sage`, `mint`,
+`sky`, `lavender`, `clay`. Send `null` to clear one. Anything outside the
+palette is refused.
+
+```bash
+mm /api/mindmaps/MAP_ID/nodes/q1 -X PATCH -d '{"color": "amber"}'
+mm /api/mindmaps/MAP_ID/nodes/q1 -X PATCH -d '{"color": null}'
+```
+
+An uncolored node has no `color` key at all when you read it back, so absence —
+not `null` — is how "no color" reads. Coloring is not a content edit: it works
+on any node type, and it is never refused by the lock that blocks editing a node
+with a settled answer beneath it.
+
+**The color is the user's meaning, not yours.** The product assigns nothing to
+any key — people use them to group a branch, flag the threads they want to
+return to, or keep two lines of thinking apart. It is presentational: it never
+reaches the model, never changes what a node generates, and never encodes status
+(the card's border carries that). So set a color when the user asks for one or
+has described their scheme, in their terms, and do not invent a legend of your
+own. When you reorganize or rebuild part of a map, carry each node's existing
+color across — dropping it silently deletes the only thing the field was
+holding.
 
 ### Attachments
 
