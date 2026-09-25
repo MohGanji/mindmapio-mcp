@@ -282,15 +282,11 @@ describe("generation tool wiring", () => {
     expect(client.submitNode).toHaveBeenCalledWith("m1", "n1", { prompt: "go", modelId: "x" }, {});
   });
 
-  it("auto_expand forwards count and direction", async () => {
+  it("auto_expand takes only the node — the fan-out's width is the model's call", async () => {
     const client = fakeClient();
-    await tool("auto_expand").handler(client, {
-      mapId: "m1",
-      nodeId: "n1",
-      count: 3,
-      direction: "deeper",
-    });
-    expect(client.autoExpand).toHaveBeenCalledWith("m1", "n1", { count: 3, direction: "deeper" });
+    await tool("auto_expand").handler(client, { mapId: "m1", nodeId: "n1" });
+    expect(client.autoExpand).toHaveBeenCalledWith("m1", "n1");
+    expect(Object.keys(tool("auto_expand").inputSchema)).toEqual(["mapId", "nodeId"]);
   });
 
   it("retry_node forwards force and generation inputs", async () => {

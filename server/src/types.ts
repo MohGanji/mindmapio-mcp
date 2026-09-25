@@ -102,10 +102,9 @@ export interface SubmitNodeResponse {
   messages: Record<string, unknown>[];
 }
 
-export interface AutoExpandRequest {
-  count?: number;
-  direction?: string;
-}
+/** Auto-expand takes no controls: the fan-out's width and what its follow-ups
+ *  ask are the model's call, read from the node's own thread. */
+export type AutoExpandRequest = Record<string, never>;
 
 export interface AutoExpandResponse {
   nodeId: string;

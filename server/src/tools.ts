@@ -283,14 +283,8 @@ function wiring(): ToolWiring[] {
     {
       name: "auto_expand",
       operationId: "autoExpandNode",
-      inputSchema: {
-        mapId,
-        nodeId,
-        count: z.number().int().min(1).max(4).optional().describe("Number of follow-ups (1-4, default 2)."),
-        direction: z.string().optional().describe("Steers what the follow-ups explore."),
-      },
-      handler: (client, args) =>
-        client.autoExpand(args.mapId, args.nodeId, compact({ count: args.count, direction: args.direction })),
+      inputSchema: { mapId, nodeId },
+      handler: (client, args) => client.autoExpand(args.mapId, args.nodeId),
     },
     {
       name: "retry_node",
