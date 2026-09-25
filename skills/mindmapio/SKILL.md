@@ -220,10 +220,10 @@ mm /api/mindmaps/MAP_ID/nodes/q1/submit -X POST -d '{}'
 mm "/api/mindmaps/MAP_ID/nodes/q1/submit?force=true" -X POST -d '{}'
 ```
 
-**Auto-expand a node** — `POST /api/mindmaps/{mapId}/nodes/{nodeId}/auto-expand` with optional `{count?, direction?}` (`count` 1–4, default 2). Generates follow-up prompts as `queued` child nodes and returns `{nodeId, childIds}`. **One level only** — it does NOT run the children. Metered; over budget `429`.
+**Auto-expand a node** — `POST /api/mindmaps/{mapId}/nodes/{nodeId}/auto-expand`, no body. Generates follow-up prompts for the node's thread as `queued` child nodes, one per prompt, and returns `{nodeId, childIds}`. How many is the model's call, read from that thread, so it varies by node and is not capped — there is nothing to size or steer. **One level only** — it does NOT run the children. Metered; over budget `429`.
 
 ```bash
-mm /api/mindmaps/MAP_ID/nodes/q1/auto-expand -X POST -d '{"count": 3}'
+mm /api/mindmaps/MAP_ID/nodes/q1/auto-expand -X POST -d '{}'
 ```
 
 **Retry a node** — `POST /api/mindmaps/{mapId}/nodes/{nodeId}/retry?force=true` with optional `{prompt?, modelId?}`. Clears the prior error and re-runs, returning `{status, messages}`. Retrying an expand node that already has children returns `409` unless `force=true` (which deletes those children first). Metered; over budget `429`.
@@ -288,7 +288,7 @@ want to go deeper.
 
 ```bash
 # 1. Fan a completed node out into queued follow-up children.
-resp=$(mm /api/mindmaps/MAP_ID/nodes/q1/auto-expand -X POST -d '{"count": 3}')
+resp=$(mm /api/mindmaps/MAP_ID/nodes/q1/auto-expand -X POST -d '{}')
 
 # 2. Submit each returned child to run it (each blocks on its ancestors).
 echo "$resp" | jq -r '.childIds[]' | while read -r child; do
@@ -296,7 +296,8 @@ echo "$resp" | jq -r '.childIds[]' | while read -r child; do
 done
 
 # 3. To go deeper, auto-expand a child and repeat. Choose your own depth/breadth
-#    budget — there is no server-side recursion or fan-out cap beyond count 1-4.
+#    budget — there is no server-side recursion cap, and the fan-out's width is
+#    the model's call rather than a number you set.
 ```
 
 Submit blocks until ancestors finish, so it is safe to submit children in
