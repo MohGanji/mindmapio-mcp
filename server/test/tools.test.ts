@@ -225,6 +225,24 @@ describe("create_node wiring", () => {
     expect(arg).not.toHaveProperty("data");
     expect(arg).not.toHaveProperty("position");
   });
+
+  // mindmap.io#587: color is a node field the UI has had since node color coding
+  // shipped, and the tool surface never did — so an agent asked to lay out a
+  // color-coded branch had to leave every card white.
+  it("carries a color into data", async () => {
+    const client = fakeClient();
+    await tool("create_node").handler(client, {
+      mapId: "m1",
+      nodeId: "x",
+      parentId: "r",
+      color: "sage",
+    });
+    expect(client.createNode).toHaveBeenCalledWith("m1", {
+      nodeId: "x",
+      parentId: "r",
+      data: { color: "sage" },
+    });
+  });
 });
 
 describe("update_node wiring", () => {
@@ -255,6 +273,21 @@ describe("update_node wiring", () => {
     const messages = [{ role: "user", parts: [{ type: "text", text: "only" }] }];
     await tool("update_node").handler(client, { mapId: "m1", nodeId: "n1", messages });
     expect(client.updateNode).toHaveBeenCalledWith("m1", "n1", { messages });
+  });
+
+  it("sets a color on its own, without touching the content", async () => {
+    const client = fakeClient();
+    await tool("update_node").handler(client, { mapId: "m1", nodeId: "n1", color: "amber" });
+    expect(client.updateNode).toHaveBeenCalledWith("m1", "n1", { color: "amber" });
+  });
+
+  // `null` is how the API is told to clear a color, so it has to survive the
+  // compaction that drops the fields the caller left out. An omitted color and
+  // an explicit null mean opposite things.
+  it("passes an explicit null through to clear a color", async () => {
+    const client = fakeClient();
+    await tool("update_node").handler(client, { mapId: "m1", nodeId: "n1", color: null });
+    expect(client.updateNode).toHaveBeenCalledWith("m1", "n1", { color: null });
   });
 });
 
