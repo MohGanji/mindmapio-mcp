@@ -220,7 +220,7 @@ mm /api/mindmaps/MAP_ID/nodes/q1/submit -X POST -d '{}'
 mm "/api/mindmaps/MAP_ID/nodes/q1/submit?force=true" -X POST -d '{}'
 ```
 
-**Auto-expand a node** — `POST /api/mindmaps/{mapId}/nodes/{nodeId}/auto-expand`, no body. Generates follow-up prompts for the node's thread as `queued` child nodes, one per prompt, and returns `{nodeId, childIds}`. How many is the model's call, read from that thread, so it varies by node and is not capped — there is nothing to size or steer. **One level only** — it does NOT run the children. Metered; over budget `429`.
+**Auto-expand a node** — `POST /api/mindmaps/{mapId}/nodes/{nodeId}/auto-expand`, no body. Generates follow-up prompts for the node's thread as `queued` child nodes, one per prompt, and returns `{nodeId, childIds}`. How many is the model's call, read from that thread, so it varies by node; there is nothing to size or steer. A level holds a handful, and wider material comes back grouped, one prompt per group, so its members arrive a level further down when you expand those children in turn. **One level only** — it does NOT run the children. Metered; over budget `429`.
 
 ```bash
 mm /api/mindmaps/MAP_ID/nodes/q1/auto-expand -X POST -d '{}'
