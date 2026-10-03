@@ -390,16 +390,15 @@ export function buildTools(spec: unknown = loadSpec()): ToolDef[] {
   }
 
   return tools.map(({ name, operationId, addendum, inputSchema, handler }) => {
-    const { description, ...annotations } = operations.get(operationId)!;
+    // The annotations travel whole. Naming each hint again here would be a
+    // second whitelist, and a second place for one to be dropped — which is
+    // what cost `openWorldHint` its trip to the client for a release (#622).
+    const { description, annotations } = operations.get(operationId)!;
     return {
       name,
       operationId,
       description: addendum ? `${description}\n\n${addendum}` : description,
-      annotations: {
-        title: annotations.title,
-        readOnlyHint: annotations.readOnlyHint,
-        destructiveHint: annotations.destructiveHint,
-      },
+      annotations,
       inputSchema,
       handler,
     };

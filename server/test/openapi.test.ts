@@ -10,10 +10,13 @@ describe("readOperations", () => {
   it("carries an operation's own description and its x-mcp annotations", () => {
     const op = readOperations(loadSpec()).get("submitNode");
     expect(op).toBeDefined();
-    expect(op!.title).toBe("Submit a node");
-    expect(op!.readOnlyHint).toBe(false);
+    expect(op!.annotations.title).toBe("Submit a node");
+    expect(op!.annotations.readOnlyHint).toBe(false);
     // Submitting a node that already has children can cascade them away.
-    expect(op!.destructiveHint).toBe(true);
+    expect(op!.annotations.destructiveHint).toBe(true);
+    // The generation it runs binds a web-search tool, so one call can read
+    // arbitrary public pages.
+    expect(op!.annotations.openWorldHint).toBe(true);
     // The document's description is the reason it is the source: it documents
     // the blocking gate and the metering that the hand-written copy omitted.
     expect(op!.description).toContain("The call BLOCKS");
@@ -45,7 +48,9 @@ describe("readOperations", () => {
         },
       },
     };
-    expect(() => readOperations(partial)).toThrowError(/deleteMap: x-mcp is missing destructiveHint/);
+    expect(() => readOperations(partial)).toThrowError(
+      /deleteMap: x-mcp is missing destructiveHint, openWorldHint/,
+    );
   });
 
   it("names the refresh command so the failure says what to do next", () => {

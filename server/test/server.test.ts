@@ -27,17 +27,21 @@ describe("MCP server", () => {
     expect(map.inputSchema.properties).toHaveProperty("mapId");
   });
 
-  it("advertises the annotations both Anthropic directories require", async () => {
+  it("advertises the annotations every directory requires", async () => {
     const client = await connect({} as MindmapClient);
     const { tools } = await client.listTools();
     for (const tool of tools) {
       expect(tool.annotations?.title).toBeTruthy();
       expect(typeof tool.annotations?.readOnlyHint).toBe("boolean");
       expect(typeof tool.annotations?.destructiveHint).toBe("boolean");
+      // The third hint, which OpenAI's tool scan rejects a submission for
+      // omitting. What that scan reads is this response, not the generator.
+      expect(typeof tool.annotations?.openWorldHint).toBe("boolean");
     }
     const subtree = tools.find((t) => t.name === "get_subtree")!;
     expect(subtree.annotations!.title).toBe("Read a branch");
     expect(subtree.annotations!.readOnlyHint).toBe(true);
+    expect(subtree.annotations!.openWorldHint).toBe(false);
   });
 
   it("advertises the document's description, not a local paraphrase", async () => {

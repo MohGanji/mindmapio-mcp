@@ -91,7 +91,23 @@ describe("tool catalogue", () => {
       expect(t.annotations.title.length).toBeGreaterThan(0);
       expect(t.annotations.readOnlyHint).toBeTypeOf("boolean");
       expect(t.annotations.destructiveHint).toBeTypeOf("boolean");
+      expect(t.annotations.openWorldHint).toBeTypeOf("boolean");
     }
+  });
+
+  it("marks only the four tools whose reach leaves mindmap.io open-world", () => {
+    // Reach, not writing. Submit and retry bind a web-search tool, so one call
+    // can read arbitrary public pages; publish and unpublish put a map on, and
+    // take it off, a URL anyone can fetch. auto_expand is the near miss — its
+    // own call runs with no tools, and it leaves its children queued for the
+    // agent to submit one at a time.
+    const openWorld = buildTools()
+      .filter((t) => t.annotations.openWorldHint)
+      .map((t) => t.name)
+      .sort();
+
+    expect(openWorld).toEqual(["publish_map", "retry_node", "submit_node", "unpublish_map"]);
+    expect(tool("auto_expand").annotations.openWorldHint).toBe(false);
   });
 
   it("states hints per operation instead of deriving them from the HTTP method", () => {
