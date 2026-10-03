@@ -44,12 +44,9 @@ function doctorableSpec(): any {
 
 /** The raw `x-mcp` block of one operation inside a (copied) spec. */
 function annotationBlockIn(spec: any, operationId: string): Record<string, unknown> {
-  for (const item of Object.values<any>(spec.paths)) {
-    for (const operation of Object.values<any>(item ?? {})) {
-      if (operation?.operationId === operationId) return operation["x-mcp"];
-    }
-  }
-  throw new Error(`${operationId} is not in the vendored document — this fixture is stale.`);
+  const block = declaredAnnotations(spec).get(operationId);
+  if (!block) throw new Error(`${operationId} has no x-mcp block — this fixture is stale.`);
+  return block;
 }
 
 describe("the tool list's annotations carry what the document declares", () => {

@@ -117,8 +117,14 @@ export function readOperations(spec: unknown): Map<string, OperationDoc> {
  * Every annotation a tool ships, and how to recognise a stated one. ONE list:
  * it is both what each operation must state and the whole of what reaches a
  * client, so the two cannot drift apart the way they did for `openWorldHint`.
+ *
+ * Exported because the suites that check the tool list and the wire iterate it
+ * rather than retyping the key names — a second list of "the hints we state" is
+ * the drift this change exists to remove. What they do not take from here is
+ * any VALUE; each operation's hints are pinned with their reasoning in the
+ * suites themselves.
  */
-const ANNOTATIONS: Record<keyof McpAnnotations, (value: unknown) => boolean> = {
+export const ANNOTATIONS: Record<keyof McpAnnotations, (value: unknown) => boolean> = {
   title: (value) => typeof value === "string" && value.length > 0,
   readOnlyHint: (value) => typeof value === "boolean",
   destructiveHint: (value) => typeof value === "boolean",

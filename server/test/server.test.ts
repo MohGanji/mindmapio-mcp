@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createServer } from "../src/server.js";
+import { ANNOTATIONS } from "../src/openapi.js";
 import { ApiError, type MindmapClient } from "../src/client.js";
 
 async function connect(apiClient: MindmapClient): Promise<Client> {
@@ -30,14 +31,16 @@ describe("MCP server", () => {
   it("advertises the annotations every directory requires", async () => {
     const client = await connect({} as MindmapClient);
     const { tools } = await client.listTools();
-    for (const tool of tools) {
-      expect(tool.annotations?.title).toBeTruthy();
-      expect(typeof tool.annotations?.readOnlyHint).toBe("boolean");
-      expect(typeof tool.annotations?.destructiveHint).toBe("boolean");
-      // The third hint, which OpenAI's tool scan rejects a submission for
-      // omitting. What that scan reads is this response, not the generator.
-      expect(typeof tool.annotations?.openWorldHint).toBe("boolean");
-    }
+    // What a directory's tool scan reads is THIS response, not the generator,
+    // and the keys come from the generator's own list rather than a copy of it.
+    const partial = tools
+      .filter((tool) =>
+        Object.entries(ANNOTATIONS).some(
+          ([key, isStated]) => !isStated((tool.annotations as any)?.[key]),
+        ),
+      )
+      .map((tool) => tool.name);
+    expect(partial).toEqual([]);
     const subtree = tools.find((t) => t.name === "get_subtree")!;
     expect(subtree.annotations!.title).toBe("Read a branch");
     expect(subtree.annotations!.readOnlyHint).toBe(true);
