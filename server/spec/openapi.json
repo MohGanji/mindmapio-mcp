@@ -42,7 +42,8 @@
         "x-mcp": {
           "title": "List maps",
           "readOnlyHint": true,
-          "destructiveHint": false
+          "destructiveHint": false,
+          "openWorldHint": false
         },
         "responses": {
           "200": {
@@ -73,7 +74,8 @@
         "x-mcp": {
           "title": "Create a map",
           "readOnlyHint": false,
-          "destructiveHint": false
+          "destructiveHint": false,
+          "openWorldHint": false
         },
         "requestBody": {
           "required": true,
@@ -119,7 +121,8 @@
         "x-mcp": {
           "title": "Read a full map",
           "readOnlyHint": true,
-          "destructiveHint": false
+          "destructiveHint": false,
+          "openWorldHint": false
         },
         "parameters": [
           {
@@ -158,7 +161,8 @@
         "x-mcp": {
           "title": "Delete a map",
           "readOnlyHint": false,
-          "destructiveHint": true
+          "destructiveHint": true,
+          "openWorldHint": false
         },
         "parameters": [
           {
@@ -199,7 +203,8 @@
         "x-mcp": {
           "title": "Publish a map",
           "readOnlyHint": false,
-          "destructiveHint": false
+          "destructiveHint": false,
+          "openWorldHint": true
         },
         "parameters": [
           {
@@ -238,7 +243,8 @@
         "x-mcp": {
           "title": "Unpublish a map",
           "readOnlyHint": false,
-          "destructiveHint": false
+          "destructiveHint": false,
+          "openWorldHint": true
         },
         "parameters": [
           {
@@ -279,7 +285,8 @@
         "x-mcp": {
           "title": "Upload a file",
           "readOnlyHint": false,
-          "destructiveHint": false
+          "destructiveHint": false,
+          "openWorldHint": false
         },
         "parameters": [
           {
@@ -374,7 +381,8 @@
         "x-mcp": {
           "title": "Read an uploaded file",
           "readOnlyHint": true,
-          "destructiveHint": false
+          "destructiveHint": false,
+          "openWorldHint": false
         },
         "parameters": [
           {
@@ -418,7 +426,8 @@
         "x-mcp": {
           "title": "Create a node",
           "readOnlyHint": false,
-          "destructiveHint": false
+          "destructiveHint": false,
+          "openWorldHint": false
         },
         "parameters": [
           {
@@ -475,7 +484,8 @@
         "x-mcp": {
           "title": "Read a node",
           "readOnlyHint": true,
-          "destructiveHint": false
+          "destructiveHint": false,
+          "openWorldHint": false
         },
         "parameters": [
           {
@@ -517,7 +527,8 @@
         "x-mcp": {
           "title": "Update a node",
           "readOnlyHint": false,
-          "destructiveHint": true
+          "destructiveHint": true,
+          "openWorldHint": false
         },
         "parameters": [
           {
@@ -569,7 +580,8 @@
         "x-mcp": {
           "title": "Delete a node and its descendants",
           "readOnlyHint": false,
-          "destructiveHint": true
+          "destructiveHint": true,
+          "openWorldHint": false
         },
         "parameters": [
           {
@@ -616,7 +628,8 @@
         "x-mcp": {
           "title": "Submit a node",
           "readOnlyHint": false,
-          "destructiveHint": true
+          "destructiveHint": true,
+          "openWorldHint": true
         },
         "parameters": [
           {
@@ -678,11 +691,12 @@
           "generation"
         ],
         "summary": "Auto-expand a node into queued follow-up children",
-        "description": "Generates follow-up prompts for the node's thread and creates them as `queued` child nodes, returning their ids. One level only: it does NOT run the children and does NOT recurse — the agent submits each returned child via the submit operation itself. Metered by the usage gate against the token's user; over budget returns 429. Ownership is enforced.\n",
+        "description": "Generates follow-up prompts for the node's thread and creates them as `queued` child nodes, returning their ids — one child per prompt. How many prompts is the model's call, read from the node's own thread, so it varies by node; there is nothing to size or steer. A level holds a handful, and wider material comes back grouped, one prompt per group, so its members arrive a level further down. One level only: it does NOT run the children and does NOT recurse — the agent submits each returned child via the submit operation itself. Metered by the usage gate against the token's user; over budget returns 429. Ownership is enforced.\n",
         "x-mcp": {
           "title": "Auto-expand a node",
           "readOnlyHint": false,
-          "destructiveHint": false
+          "destructiveHint": false,
+          "openWorldHint": false
         },
         "parameters": [
           {
@@ -692,16 +706,6 @@
             "$ref": "#/components/parameters/NodeId"
           }
         ],
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AutoExpandRequest"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "The ids of the newly created queued children.",
@@ -739,7 +743,8 @@
         "x-mcp": {
           "title": "Retry a node",
           "readOnlyHint": false,
-          "destructiveHint": true
+          "destructiveHint": true,
+          "openWorldHint": true
         },
         "parameters": [
           {
@@ -802,7 +807,8 @@
         "x-mcp": {
           "title": "Interrupt a node",
           "readOnlyHint": false,
-          "destructiveHint": false
+          "destructiveHint": false,
+          "openWorldHint": false
         },
         "parameters": [
           {
@@ -846,7 +852,8 @@
         "x-mcp": {
           "title": "Read a branch",
           "readOnlyHint": true,
-          "destructiveHint": false
+          "destructiveHint": false,
+          "openWorldHint": false
         },
         "parameters": [
           {
@@ -1213,20 +1220,6 @@
           "status",
           "messages"
         ]
-      },
-      "AutoExpandRequest": {
-        "type": "object",
-        "description": "Optional fan-out controls. `count` is the number of follow-ups to generate (clamped to 1–4, default 2); `direction` steers what the follow-ups explore.\n",
-        "properties": {
-          "count": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 4
-          },
-          "direction": {
-            "type": "string"
-          }
-        }
       },
       "AutoExpandResponse": {
         "type": "object",

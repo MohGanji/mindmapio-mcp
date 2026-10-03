@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { buildTools } from "../src/tools.js";
+import { ANNOTATIONS } from "../src/openapi.js";
 import type { MindmapClient } from "../src/client.js";
 
 function fakeClient(): MindmapClient {
@@ -87,11 +88,37 @@ describe("tool catalogue", () => {
   });
 
   it("annotates every tool with the title and hints the directories require", () => {
-    for (const t of buildTools()) {
-      expect(t.annotations.title.length).toBeGreaterThan(0);
-      expect(t.annotations.readOnlyHint).toBeTypeOf("boolean");
-      expect(t.annotations.destructiveHint).toBeTypeOf("boolean");
-    }
+    // Iterates the generator's own ANNOTATIONS list, so a fifth annotation is
+    // demanded of every tool the day it is added rather than the day someone
+    // remembers to extend this loop.
+    const partial = buildTools()
+      .filter((t) =>
+        Object.entries(ANNOTATIONS).some(([key, isStated]) => !isStated((t.annotations as any)[key])),
+      )
+      .map((t) => t.name);
+
+    expect(partial).toEqual([]);
+    expect(Object.keys(ANNOTATIONS).sort()).toEqual([
+      "destructiveHint",
+      "openWorldHint",
+      "readOnlyHint",
+      "title",
+    ]);
+  });
+
+  it("marks only the four tools whose reach leaves mindmap.io open-world", () => {
+    // Reach, not writing. Submit and retry bind a web-search tool, so one call
+    // can read arbitrary public pages; publish and unpublish put a map on, and
+    // take it off, a URL anyone can fetch. auto_expand is the near miss — its
+    // own call runs with no tools, and it leaves its children queued for the
+    // agent to submit one at a time.
+    const openWorld = buildTools()
+      .filter((t) => t.annotations.openWorldHint)
+      .map((t) => t.name)
+      .sort();
+
+    expect(openWorld).toEqual(["publish_map", "retry_node", "submit_node", "unpublish_map"]);
+    expect(tool("auto_expand").annotations.openWorldHint).toBe(false);
   });
 
   it("states hints per operation instead of deriving them from the HTTP method", () => {
