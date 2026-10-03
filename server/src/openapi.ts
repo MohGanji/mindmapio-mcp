@@ -144,7 +144,7 @@ function readAnnotations(raw: unknown, operationId: string, problems: string[]):
   // dropped between a reviewed contract and the `tools/list` a client reads —
   // which is exactly how `openWorldHint` went missing for a release (#622). So
   // it is a refusal naming the key, never a quiet omission.
-  const unknown = Object.keys(block).filter((key) => !(key in ANNOTATIONS));
+  const unknown = Object.keys(block).filter((key) => !Object.hasOwn(ANNOTATIONS, key));
   if (unknown.length > 0) {
     problems.push(
       `${operationId}: x-mcp declares ${unknown.join(", ")}, which this server does not emit — ` +
