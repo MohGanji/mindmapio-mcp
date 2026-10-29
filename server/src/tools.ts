@@ -99,6 +99,41 @@ const messages = z
   )
   .describe("Node content as a UIMessage array (e.g. one user turn with text parts).");
 
+/** The node card tints the app offers, as stable palette keys. */
+const NODE_COLORS = [
+  "rose",
+  "pink",
+  "amber",
+  "sage",
+  "mint",
+  "sky",
+  "lavender",
+  "clay",
+] as const;
+
+/**
+ * A node's card tint (mindmap.io#587). Nullable on purpose: `null` is how the
+ * API is told to clear a color, and it has to reach the request rather than be
+ * compacted away like a field the caller simply left out.
+ *
+ * The description says what the field is and what it deliberately is NOT. The
+ * product assigns no meaning to any key — a color is whatever the person using
+ * the map has decided it means — so a model that invents a legend of its own, or
+ * that recolors a map while reorganising it, destroys the only meaning the field
+ * carries.
+ */
+const color = z
+  .enum(NODE_COLORS)
+  .nullable()
+  .optional()
+  .describe(
+    "The node card's pastel tint, as a palette key; null clears it back to the default " +
+      "white card. Presentational only: it does not reach the model, change what a node " +
+      "generates, or encode status. It has no fixed meaning — it is the user's own grouping " +
+      "or flagging scheme — so set one only when they ask or have described their scheme, and " +
+      "leave the colors already on a map alone when you reorganize it.",
+  );
+
 function wiring(): ToolWiring[] {
   return [
     {
@@ -211,9 +246,15 @@ function wiring(): ToolWiring[] {
           .describe("Initial node content as a UIMessage array (a data/note node's body is a user message too)."),
         note: z.string().optional().describe("Initial node note."),
         nodeType: z.string().optional().describe("The node's type (e.g. prompt, data, expand)."),
+        color,
       },
       handler: (client, args) => {
-        const data = compact({ messages: args.messages, note: args.note, node_type: args.nodeType });
+        const data = compact({
+          messages: args.messages,
+          note: args.note,
+          node_type: args.nodeType,
+          color: args.color,
+        });
         const body = compact({
           nodeId: args.nodeId ?? randomUUID(),
           parentId: args.parentId,
@@ -235,6 +276,7 @@ function wiring(): ToolWiring[] {
         isCollapsed: z.boolean().optional(),
         modelProvider: z.string().optional(),
         modelId: z.string().optional(),
+        color,
       },
       handler: (client, args) =>
         client.updateNode(
@@ -247,6 +289,7 @@ function wiring(): ToolWiring[] {
             is_collapsed: args.isCollapsed,
             model_provider: args.modelProvider,
             model_id: args.modelId,
+            color: args.color,
           }),
         ),
     },
