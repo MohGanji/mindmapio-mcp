@@ -1141,6 +1141,9 @@
               "node_type": {
                 "type": "string",
                 "description": "The node's type (e.g. prompt, data, expand)."
+              },
+              "color": {
+                "$ref": "#/components/schemas/NodeColorWrite"
               }
             }
           }
@@ -1181,6 +1184,9 @@
           },
           "model_id": {
             "type": "string"
+          },
+          "color": {
+            "$ref": "#/components/schemas/NodeColorWrite"
           }
         }
       },
@@ -1325,6 +1331,38 @@
           }
         }
       },
+      "NodeColorRead": {
+        "type": "string",
+        "enum": [
+          "rose",
+          "pink",
+          "amber",
+          "sage",
+          "mint",
+          "sky",
+          "lavender",
+          "clay"
+        ],
+        "description": "The pastel tint on the node's card, as a stable palette key. Absent when the node has no color, which is the default white card — a read never reports `null`, so \"the key is missing\" is the only way an uncolored node appears.\n"
+      },
+      "NodeColorWrite": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "enum": [
+          "rose",
+          "pink",
+          "amber",
+          "sage",
+          "mint",
+          "sky",
+          "lavender",
+          "clay",
+          null
+        ],
+        "description": "Tint the node's card with one of eight pastels, or send `null` to clear the tint back to the default white card. Omitting the field leaves the node's current color alone.\n\nColor is presentational and carries no fixed meaning: it does not reach the model, change what a node generates, or encode a node's status (the card's border carries selection and generation state). It is whatever the person has decided it means on their map — usually grouping a branch or flagging threads to come back to. So set a color only when the user asks for one or has told you their scheme, use their words for it rather than inventing a legend, and preserve the colors already on a map when you reorganize it: recoloring someone's nodes silently destroys the meaning they put there. Applies to any node type, and is never refused by the descendant-answer edit lock that blocks content changes.\n"
+      },
       "Node": {
         "type": "object",
         "description": "A single map node with unprefixed IDs.",
@@ -1366,6 +1404,9 @@
           },
           "isCollapsed": {
             "type": "boolean"
+          },
+          "color": {
+            "$ref": "#/components/schemas/NodeColorRead"
           }
         },
         "required": [
