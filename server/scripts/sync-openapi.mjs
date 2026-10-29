@@ -13,10 +13,14 @@
 // same reasoning as marketing/scripts/sync-agent-skills.mjs.
 //
 // It refuses to write a document whose operations are missing their `x-mcp`
-// annotations. A tool with no title and no readOnly/destructive hint is a
-// rejection criterion for both Anthropic directories, so a silent fallback
-// would quietly ship the unannotated list this replaces. Until the annotated
-// spec is deployed this exits 1 and the vendored copy stands.
+// annotations. A tool with no title and no readOnly/destructive/openWorld hint
+// is a rejection criterion for both Anthropic directories and an automated
+// rejection on an OpenAI submission, so a silent fallback would quietly ship
+// the unannotated list this replaces. Until the annotated spec is deployed this
+// exits 1 and the vendored copy stands — which is what it does between this
+// change and the deploy of mindmap.io's own openWorldHint sweep, so the
+// vendored copy here was refreshed from that branch by hand and re-syncs to a
+// no-op once it is live.
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
