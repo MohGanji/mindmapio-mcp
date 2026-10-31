@@ -14,6 +14,7 @@ function fakeClient(): MindmapClient {
     deleteMap: vi.fn().mockResolvedValue({ success: true }),
     publishMap: vi.fn().mockResolvedValue({ publicId: "pub123" }),
     unpublishMap: vi.fn().mockResolvedValue({ success: true }),
+    setMapLayout: vi.fn().mockResolvedValue({ layout: "top-down" }),
     publicMapUrls: vi.fn().mockReturnValue({
       publicId: "pub123",
       viewerUrl: "https://mindmap.io/app/pub123?node=root&zoom=keyword&cz=90",
@@ -62,6 +63,7 @@ describe("tool catalogue", () => {
         "retry_node",
         "submit_node",
         "read_attachment",
+        "set_map_layout",
         "unpublish_map",
         "update_node",
         "upload_attachment",
@@ -209,6 +211,18 @@ describe("map write wiring", () => {
     const client = fakeClient();
     await tool("unpublish_map").handler(client, { mapId: "m1" });
     expect(client.unpublishMap).toHaveBeenCalledWith("m1");
+  });
+
+  it("set_map_layout passes the map id and the layout", async () => {
+    const client = fakeClient();
+    await tool("set_map_layout").handler(client, { mapId: "m1", layout: "top-down" });
+    expect(client.setMapLayout).toHaveBeenCalledWith("m1", "top-down");
+  });
+
+  it("set_map_layout only offers the layouts the app knows", () => {
+    const layout = tool("set_map_layout").inputSchema.layout;
+    expect(layout.safeParse("both-sides").success).toBe(true);
+    expect(layout.safeParse("radial").success).toBe(false);
   });
 });
 

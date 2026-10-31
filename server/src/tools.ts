@@ -5,7 +5,7 @@ import { basename, extname, join } from "node:path";
 import { z } from "zod";
 import type { MindmapClient } from "./client.js";
 import { loadSpec, readOperations, type McpAnnotations } from "./openapi.js";
-import { ZOOM_LEVELS } from "./types.js";
+import { MAP_LAYOUTS, ZOOM_LEVELS } from "./types.js";
 
 /**
  * A semantic MCP tool over a single API primitive. `inputSchema` is a Zod raw
@@ -222,6 +222,17 @@ function wiring(): ToolWiring[] {
       operationId: "unpublishMap",
       inputSchema: { mapId },
       handler: (client, args) => client.unpublishMap(args.mapId),
+    },
+    {
+      name: "set_map_layout",
+      operationId: "setMapLayout",
+      inputSchema: {
+        mapId,
+        layout: z
+          .enum(MAP_LAYOUTS)
+          .describe("'tree' grows right from the root, 'top-down' grows downward, 'both-sides' splits the root's branches left and right."),
+      },
+      handler: (client, args) => client.setMapLayout(args.mapId, args.layout),
     },
     {
       name: "create_node",

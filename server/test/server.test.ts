@@ -22,7 +22,7 @@ describe("MCP server", () => {
     const client = await connect({} as MindmapClient);
     const { tools } = await client.listTools();
     // 17 operations in the OpenAPI document, 17 tools.
-    expect(tools).toHaveLength(17);
+    expect(tools).toHaveLength(18);
     const map = tools.find((t) => t.name === "get_map")!;
     expect(map.inputSchema).toBeDefined();
     expect(map.inputSchema.properties).toHaveProperty("mapId");
