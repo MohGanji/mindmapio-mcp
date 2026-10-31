@@ -8,6 +8,8 @@ import {
   type CreateMapRequest,
   type CreateMapResponse,
   type CreateNodeRequest,
+  type MapLayout,
+  type MapLayoutResponse,
   type MindMap,
   type MindMapSummary,
   type Node,
@@ -100,6 +102,11 @@ export class MindmapClient {
   /** Unpublish a map: flips it back to private, 404ing every public link. */
   unpublishMap(id: string): Promise<SuccessResponse> {
     return this.#request<SuccessResponse>("DELETE", `${this.#mapPath(id)}/publish`);
+  }
+
+  /** Set how the map arranges its branches. A view setting; the tree is unchanged. */
+  setMapLayout(id: string, layout: MapLayout): Promise<MapLayoutResponse> {
+    return this.#request<MapLayoutResponse>("PUT", `${this.#mapPath(id)}/layout`, { layout });
   }
 
   /**

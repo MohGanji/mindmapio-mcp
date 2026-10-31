@@ -306,6 +306,29 @@ a normal example/template map as `…?node=root&zoom=full&cz=100`.
 > and returns `{publicId, viewerUrl, embedUrl}` already framed by the `zoom`/`cz`
 > you pass. `unpublish_map` reverses it.
 
+### Layout
+
+A map has a layout: how its branches are arranged on the canvas. Everyone who
+opens the map sees it this way, public and embed links included. It is a view
+setting, so the node tree is untouched. Owner-only; not metered.
+
+**Set a map's layout** — `PUT /api/mindmaps/{mapId}/layout` with `{layout}`,
+one of `tree` (branches grow right from the root, the default), `top-down`
+(branches grow downward, like an org chart) or `both-sides` (the root in the
+middle, its branches split left and right). → `{layout}`. An unknown value is
+a `400`.
+
+```bash
+mm /api/mindmaps/MAP_ID/layout -X PUT -d '{"layout":"top-down"}'
+# → {"layout":"top-down"}
+```
+
+`get_map` returns the current `layout` with the map. `top-down` reads best for
+shallow maps with a few branches per node; `both-sides` suits a central topic
+with many first-level branches.
+
+> Via the MCP server, the same call is `set_map_layout` with `{mapId, layout}`.
+
 ## Pattern: agent-drives-recursion for auto-expand
 
 Auto-expand does NOT recurse and does NOT run the children it creates — it only

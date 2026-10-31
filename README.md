@@ -78,6 +78,7 @@ Seventeen tools, one per operation in the [Mindmap.io node API](https://mindmap.
 | `delete_map` | Delete a map and everything in it. |
 | `publish_map` | Publish a map and get its shareable + embed links. |
 | `unpublish_map` | Make a published map private again. |
+| `set_map_layout` | Arrange a map as a tree, top-down, or with branches on both sides. |
 | `create_node` | Add a node under a parent. |
 | `update_node` | Edit a node's content, note, type, or model. |
 | `delete_node` | Remove a node and its children. |

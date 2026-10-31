@@ -167,6 +167,15 @@ describe("map writes", () => {
     expect(captured[0].url).toBe("https://api.example.test/api/mindmaps/m1/publish");
     expect(result).toEqual({ success: true });
   });
+
+  it("setMapLayout PUTs the layout to /api/mindmaps/{id}/layout", async () => {
+    mockNext(jsonResponse({ layout: "both-sides" }));
+    const result = await makeClient().setMapLayout("m1", "both-sides");
+    expect(captured[0].method).toBe("PUT");
+    expect(captured[0].url).toBe("https://api.example.test/api/mindmaps/m1/layout");
+    expect(captured[0].body).toEqual({ layout: "both-sides" });
+    expect(result).toEqual({ layout: "both-sides" });
+  });
 });
 
 describe("public map urls", () => {
