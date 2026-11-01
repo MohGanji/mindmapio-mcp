@@ -1,4 +1,5 @@
 import {
+  MAP_LAYOUTS,
   ZOOM_LEVELS,
   type Attachment,
   type AttachmentDownload,
@@ -8,6 +9,8 @@ import {
   type CreateMapRequest,
   type CreateMapResponse,
   type CreateNodeRequest,
+  type MapLayout,
+  type MapLayoutResponse,
   type MindMap,
   type MindMapSummary,
   type Node,
@@ -102,18 +105,26 @@ export class MindmapClient {
     return this.#request<SuccessResponse>("DELETE", `${this.#mapPath(id)}/publish`);
   }
 
+  /** Set how the map arranges its branches. A view setting; the tree is unchanged. */
+  setMapLayout(id: string, layout: MapLayout): Promise<MapLayoutResponse> {
+    return this.#request<MapLayoutResponse>("PUT", `${this.#mapPath(id)}/layout`, { layout });
+  }
+
   /**
    * Build the shareable + embeddable links for a published map, framed on first
-   * paint by `node=root`, the semantic `zoom` level, and the canvas `cz` percent.
+   * paint by `node=root`, the semantic `zoom` level, the canvas `cz` percent,
+   * and optionally a `layout` the links open in (without changing the map).
    * Pure string building over the client's base url — no request. An unknown
-   * zoom falls back to 'full', matching the app and the marketing URL builder.
+   * zoom falls back to 'full', and an unknown layout is left off, matching the app.
    */
   publicMapUrls(
     publicId: string,
-    { zoom = "full", cz = 100 }: { zoom?: ZoomLevel; cz?: number } = {},
+    { zoom = "full", cz = 100, layout }: { zoom?: ZoomLevel; cz?: number; layout?: MapLayout } = {},
   ): PublicMapUrls {
     const level = ZOOM_LEVELS.includes(zoom) ? zoom : "full";
-    const query = new URLSearchParams({ node: "root", zoom: level, cz: String(cz) }).toString();
+    const params = new URLSearchParams({ node: "root", zoom: level, cz: String(cz) });
+    if (layout && MAP_LAYOUTS.includes(layout)) params.set("layout", layout);
+    const query = params.toString();
     const slug = encodeURIComponent(publicId);
     return {
       publicId,

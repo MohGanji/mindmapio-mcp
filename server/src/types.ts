@@ -124,6 +124,19 @@ export interface RespondResponse {
 export const ZOOM_LEVELS = ["full", "tweet", "phrase", "keyword"] as const;
 export type ZoomLevel = (typeof ZOOM_LEVELS)[number];
 
+/**
+ * How a map arranges its branches on the canvas (mirrors the app's map layouts).
+ * 'tree' grows right from the root, 'top-down' grows downward, 'both-sides'
+ * splits the root's branches between its left and right.
+ */
+export const MAP_LAYOUTS = ["tree", "top-down", "both-sides"] as const;
+export type MapLayout = (typeof MAP_LAYOUTS)[number];
+
+/** PUT /api/mindmaps/:id/layout — the layout the map now uses. */
+export interface MapLayoutResponse {
+  layout: MapLayout;
+}
+
 /** POST /api/mindmaps/:id/publish — mints (or reuses) the map's public slug. */
 export interface PublishMapResponse {
   publicId: string;

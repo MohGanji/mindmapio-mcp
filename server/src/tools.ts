@@ -5,7 +5,7 @@ import { basename, extname, join } from "node:path";
 import { z } from "zod";
 import type { MindmapClient } from "./client.js";
 import { loadSpec, readOperations, type McpAnnotations } from "./openapi.js";
-import { ZOOM_LEVELS } from "./types.js";
+import { MAP_LAYOUTS, ZOOM_LEVELS } from "./types.js";
 
 /**
  * A semantic MCP tool over a single API primitive. `inputSchema` is a Zod raw
@@ -198,7 +198,7 @@ function wiring(): ToolWiring[] {
       name: "publish_map",
       operationId: "publishMap",
       addendum:
-        "This tool does both halves in one call: it publishes, then returns the ready-to-use links as {publicId, viewerUrl, embedUrl}, framed by the zoom and cz you pass.",
+        "This tool does both halves in one call: it publishes, then returns the ready-to-use links as {publicId, viewerUrl, embedUrl}, framed by the zoom, cz and layout you pass.",
       inputSchema: {
         mapId,
         zoom: z
@@ -211,10 +211,14 @@ function wiring(): ToolWiring[] {
           .positive()
           .optional()
           .describe("Canvas zoom percent the links open at (default 100)."),
+        layout: z
+          .enum(MAP_LAYOUTS)
+          .optional()
+          .describe("Map layout the links open in, without changing the map's own (default: the map's layout)."),
       },
       handler: async (client, args) => {
         const { publicId } = await client.publishMap(args.mapId);
-        return client.publicMapUrls(publicId, compact({ zoom: args.zoom, cz: args.cz }));
+        return client.publicMapUrls(publicId, compact({ zoom: args.zoom, cz: args.cz, layout: args.layout }));
       },
     },
     {
@@ -222,6 +226,17 @@ function wiring(): ToolWiring[] {
       operationId: "unpublishMap",
       inputSchema: { mapId },
       handler: (client, args) => client.unpublishMap(args.mapId),
+    },
+    {
+      name: "set_map_layout",
+      operationId: "setMapLayout",
+      inputSchema: {
+        mapId,
+        layout: z
+          .enum(MAP_LAYOUTS)
+          .describe("'tree' grows right from the root, 'top-down' grows downward, 'both-sides' splits the root's branches left and right."),
+      },
+      handler: (client, args) => client.setMapLayout(args.mapId, args.layout),
     },
     {
       name: "create_node",

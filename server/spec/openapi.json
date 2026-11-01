@@ -274,6 +274,61 @@
         }
       }
     },
+    "/api/mindmaps/{id}/layout": {
+      "put": {
+        "operationId": "setMapLayout",
+        "tags": [
+          "maps"
+        ],
+        "summary": "Set a map's layout",
+        "description": "Sets how the map arranges its branches on the canvas: `tree` grows right from the root, `top-down` grows downward, `both-sides` splits the root's branches between its left and right. Everyone who opens the map sees it this way, including public and embed links. A view setting: the node tree is unchanged. Owner-only, and not metered.\n",
+        "x-mcp": {
+          "title": "Set a map's layout",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/MapId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MapLayoutRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The layout the map now uses.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MapLayoutRequest"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
     "/api/mindmaps/{mapId}/files": {
       "post": {
         "operationId": "uploadAttachment",
@@ -1301,8 +1356,31 @@
           "user_id": {
             "type": "string"
           },
+          "layout": {
+            "$ref": "#/components/schemas/MapLayout"
+          },
           "data": {
             "$ref": "#/components/schemas/MapData"
+          }
+        }
+      },
+      "MapLayout": {
+        "type": "string",
+        "enum": [
+          "tree",
+          "top-down",
+          "both-sides"
+        ],
+        "description": "How the map arranges its branches: `tree` grows right from the root, `top-down` grows downward, `both-sides` splits the root's branches between its left and right. A view setting; the node tree is unchanged.\n"
+      },
+      "MapLayoutRequest": {
+        "type": "object",
+        "required": [
+          "layout"
+        ],
+        "properties": {
+          "layout": {
+            "$ref": "#/components/schemas/MapLayout"
           }
         }
       },

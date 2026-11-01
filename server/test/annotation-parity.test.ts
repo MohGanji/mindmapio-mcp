@@ -83,9 +83,9 @@ describe("the tool list's annotations carry what the document declares", () => {
     expect(() => buildTools(spec)).toThrowError(/getSubtree: x-mcp is missing openWorldHint/);
   });
 
-  it("builds all seventeen tools, so none of the rules above can pass over an empty list", () => {
+  it("builds all eighteen tools, so none of the rules above can pass over an empty list", () => {
     const tools = buildTools();
-    expect(tools).toHaveLength(17);
+    expect(tools).toHaveLength(18);
     // Pinned whole, so a rule that stopped inspecting annotations cannot hide
     // behind a key-set comparison of two empty objects.
     expect(tools.find((tool) => tool.name === "submit_node")!.annotations).toEqual({

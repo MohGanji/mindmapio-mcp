@@ -291,11 +291,12 @@ mm /api/mindmaps/MAP_ID/publish -X DELETE
 Build the shareable links from the `publicId`. The query frames the map on first
 paint: `node=root`, the semantic `zoom` level (`full` default; `keyword`/`phrase`
 open a large **reference** map zoomed-out so its whole shape shows at a glance),
-and `cz`, the canvas-zoom percent.
+`cz`, the canvas-zoom percent, and optionally `layout` (`tree`, `top-down` or
+`both-sides`), which opens the link in that layout without changing the map's.
 
 ```
-Viewer link:  https://mindmap.io/app/<publicId>?node=root&zoom=<level>&cz=<percent>
-Iframe embed: https://mindmap.io/app/embed/<publicId>?node=root&zoom=<level>&cz=<percent>
+Viewer link:  https://mindmap.io/app/<publicId>?node=root&zoom=<level>&cz=<percent>[&layout=<layout>]
+Iframe embed: https://mindmap.io/app/embed/<publicId>?node=root&zoom=<level>&cz=<percent>[&layout=<layout>]
 ```
 
 So a zoomed-out reference map embeds as
@@ -303,8 +304,31 @@ So a zoomed-out reference map embeds as
 a normal example/template map as `…?node=root&zoom=full&cz=100`.
 
 > Via the MCP server, `publish_map` does both steps in one call — it publishes
-> and returns `{publicId, viewerUrl, embedUrl}` already framed by the `zoom`/`cz`
-> you pass. `unpublish_map` reverses it.
+> and returns `{publicId, viewerUrl, embedUrl}` already framed by the
+> `zoom`/`cz`/`layout` you pass. `unpublish_map` reverses it.
+
+### Layout
+
+A map has a layout: how its branches are arranged on the canvas. Everyone who
+opens the map sees it this way, public and embed links included. It is a view
+setting, so the node tree is untouched. Owner-only; not metered.
+
+**Set a map's layout** — `PUT /api/mindmaps/{mapId}/layout` with `{layout}`,
+one of `tree` (branches grow right from the root, the default), `top-down`
+(branches grow downward, like an org chart) or `both-sides` (the root in the
+middle, its branches split left and right). → `{layout}`. An unknown value is
+a `400`.
+
+```bash
+mm /api/mindmaps/MAP_ID/layout -X PUT -d '{"layout":"top-down"}'
+# → {"layout":"top-down"}
+```
+
+`get_map` returns the current `layout` with the map. `top-down` reads best for
+shallow maps with a few branches per node; `both-sides` suits a central topic
+with many first-level branches.
+
+> Via the MCP server, the same call is `set_map_layout` with `{mapId, layout}`.
 
 ## Pattern: agent-drives-recursion for auto-expand
 
