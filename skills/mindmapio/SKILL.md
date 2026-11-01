@@ -291,11 +291,12 @@ mm /api/mindmaps/MAP_ID/publish -X DELETE
 Build the shareable links from the `publicId`. The query frames the map on first
 paint: `node=root`, the semantic `zoom` level (`full` default; `keyword`/`phrase`
 open a large **reference** map zoomed-out so its whole shape shows at a glance),
-and `cz`, the canvas-zoom percent.
+`cz`, the canvas-zoom percent, and optionally `layout` (`tree`, `top-down` or
+`both-sides`), which opens the link in that layout without changing the map's.
 
 ```
-Viewer link:  https://mindmap.io/app/<publicId>?node=root&zoom=<level>&cz=<percent>
-Iframe embed: https://mindmap.io/app/embed/<publicId>?node=root&zoom=<level>&cz=<percent>
+Viewer link:  https://mindmap.io/app/<publicId>?node=root&zoom=<level>&cz=<percent>[&layout=<layout>]
+Iframe embed: https://mindmap.io/app/embed/<publicId>?node=root&zoom=<level>&cz=<percent>[&layout=<layout>]
 ```
 
 So a zoomed-out reference map embeds as
@@ -303,8 +304,8 @@ So a zoomed-out reference map embeds as
 a normal example/template map as `…?node=root&zoom=full&cz=100`.
 
 > Via the MCP server, `publish_map` does both steps in one call — it publishes
-> and returns `{publicId, viewerUrl, embedUrl}` already framed by the `zoom`/`cz`
-> you pass. `unpublish_map` reverses it.
+> and returns `{publicId, viewerUrl, embedUrl}` already framed by the
+> `zoom`/`cz`/`layout` you pass. `unpublish_map` reverses it.
 
 ### Layout
 

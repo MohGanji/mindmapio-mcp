@@ -198,6 +198,13 @@ describe("public map urls", () => {
     const urls = makeClient().publicMapUrls("pub123", { zoom: "bogus" as any });
     expect(urls.viewerUrl).toContain("zoom=full");
   });
+
+  it("opens the links in a layout when given one, and leaves an unknown one off", () => {
+    const urls = makeClient().publicMapUrls("pub123", { layout: "top-down" });
+    expect(urls.viewerUrl).toBe("https://api.example.test/app/pub123?node=root&zoom=full&cz=100&layout=top-down");
+    expect(urls.embedUrl).toContain("&layout=top-down");
+    expect(makeClient().publicMapUrls("pub123", { layout: "radial" as any }).viewerUrl).not.toContain("layout=");
+  });
 });
 
 describe("node writes", () => {

@@ -3,7 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { buildTools } from "../src/tools.js";
-import { ANNOTATIONS } from "../src/openapi.js";
+import { ANNOTATIONS, loadSpec } from "../src/openapi.js";
+import { MAP_LAYOUTS } from "../src/types.js";
 import type { MindmapClient } from "../src/client.js";
 
 function fakeClient(): MindmapClient {
@@ -205,6 +206,17 @@ describe("map write wiring", () => {
     const client = fakeClient();
     await tool("publish_map").handler(client, { mapId: "m1" });
     expect(client.publicMapUrls).toHaveBeenCalledWith("pub123", {});
+  });
+
+  it("publish_map passes a layout through to the links", async () => {
+    const client = fakeClient();
+    await tool("publish_map").handler(client, { mapId: "m1", layout: "both-sides" });
+    expect(client.publicMapUrls).toHaveBeenCalledWith("pub123", { layout: "both-sides" });
+  });
+
+  it("knows exactly the layouts the vendored document declares", () => {
+    const spec = loadSpec() as { components: { schemas: { MapLayout: { enum: string[] } } } };
+    expect([...MAP_LAYOUTS]).toEqual(spec.components.schemas.MapLayout.enum);
   });
 
   it("unpublish_map passes the map id", async () => {

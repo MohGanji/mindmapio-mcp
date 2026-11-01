@@ -198,7 +198,7 @@ function wiring(): ToolWiring[] {
       name: "publish_map",
       operationId: "publishMap",
       addendum:
-        "This tool does both halves in one call: it publishes, then returns the ready-to-use links as {publicId, viewerUrl, embedUrl}, framed by the zoom and cz you pass.",
+        "This tool does both halves in one call: it publishes, then returns the ready-to-use links as {publicId, viewerUrl, embedUrl}, framed by the zoom, cz and layout you pass.",
       inputSchema: {
         mapId,
         zoom: z
@@ -211,10 +211,14 @@ function wiring(): ToolWiring[] {
           .positive()
           .optional()
           .describe("Canvas zoom percent the links open at (default 100)."),
+        layout: z
+          .enum(MAP_LAYOUTS)
+          .optional()
+          .describe("Map layout the links open in, without changing the map's own (default: the map's layout)."),
       },
       handler: async (client, args) => {
         const { publicId } = await client.publishMap(args.mapId);
-        return client.publicMapUrls(publicId, compact({ zoom: args.zoom, cz: args.cz }));
+        return client.publicMapUrls(publicId, compact({ zoom: args.zoom, cz: args.cz, layout: args.layout }));
       },
     },
     {
