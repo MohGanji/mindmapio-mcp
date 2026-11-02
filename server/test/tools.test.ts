@@ -16,6 +16,7 @@ function fakeClient(): MindmapClient {
     publishMap: vi.fn().mockResolvedValue({ publicId: "pub123" }),
     unpublishMap: vi.fn().mockResolvedValue({ success: true }),
     setMapLayout: vi.fn().mockResolvedValue({ layout: "top-down" }),
+    sendFeedback: vi.fn().mockResolvedValue({ id: "f1" }),
     publicMapUrls: vi.fn().mockReturnValue({
       publicId: "pub123",
       viewerUrl: "https://mindmap.io/app/pub123?node=root&zoom=keyword&cz=90",
@@ -64,6 +65,7 @@ describe("tool catalogue", () => {
         "retry_node",
         "submit_node",
         "read_attachment",
+        "send_feedback",
         "set_map_layout",
         "unpublish_map",
         "update_node",
@@ -235,6 +237,30 @@ describe("map write wiring", () => {
     const layout = tool("set_map_layout").inputSchema.layout;
     expect(layout.safeParse("both-sides").success).toBe(true);
     expect(layout.safeParse("radial").success).toBe(false);
+  });
+});
+
+describe("send_feedback wiring", () => {
+  it("passes the kind, the message and the map it is about", async () => {
+    const client = fakeClient();
+    await tool("send_feedback").handler(client, { kind: "bug", message: "Export cuts off a branch", mapId: "m1" });
+    expect(client.sendFeedback).toHaveBeenCalledWith({
+      kind: "bug",
+      message: "Export cuts off a branch",
+      context: { mapId: "m1" },
+    });
+  });
+
+  it("sends no context when no map is named", async () => {
+    const client = fakeClient();
+    await tool("send_feedback").handler(client, { kind: "idea", message: "Dark mode" });
+    expect(client.sendFeedback).toHaveBeenCalledWith({ kind: "idea", message: "Dark mode" });
+  });
+
+  it("only offers the three kinds the API takes", () => {
+    const kind = tool("send_feedback").inputSchema.kind;
+    expect(kind.safeParse("other").success).toBe(true);
+    expect(kind.safeParse("praise").success).toBe(false);
   });
 });
 

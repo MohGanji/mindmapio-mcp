@@ -9,6 +9,8 @@ import {
   type CreateMapRequest,
   type CreateMapResponse,
   type CreateNodeRequest,
+  type FeedbackRequest,
+  type FeedbackResponse,
   type MapLayout,
   type MapLayoutResponse,
   type MindMap,
@@ -108,6 +110,11 @@ export class MindmapClient {
   /** Set how the map arranges its branches. A view setting; the tree is unchanged. */
   setMapLayout(id: string, layout: MapLayout): Promise<MapLayoutResponse> {
     return this.#request<MapLayoutResponse>("PUT", `${this.#mapPath(id)}/layout`, { layout });
+  }
+
+  /** Pass the user's feedback to the mindmap.io team. A reply goes to their account email. */
+  sendFeedback(body: FeedbackRequest): Promise<FeedbackResponse> {
+    return this.#request<FeedbackResponse>("POST", "/api/feedback", body);
   }
 
   /**

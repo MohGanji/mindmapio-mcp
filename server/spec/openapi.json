@@ -28,6 +28,10 @@
     {
       "name": "generation",
       "description": "Generative operations that invoke the LLM on a node."
+    },
+    {
+      "name": "feedback",
+      "description": "Pass the user's bug reports and ideas to the mindmap.io team."
     }
   ],
   "paths": {
@@ -466,6 +470,56 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/feedback": {
+      "post": {
+        "operationId": "submitFeedback",
+        "tags": [
+          "feedback"
+        ],
+        "summary": "Send feedback to the mindmap.io team",
+        "description": "Sends a bug report, an idea, or any other note from the user to the mindmap.io team. Use it when the user asks you to report a problem, request a feature, or pass something on. Write the message in the user's words, with what they did and what happened. It lands in the team's inbox linked to the user's account, and a reply comes by email from support@mindmap.io to the account's address. Not metered. Five messages in a row, then one a minute.\n",
+        "x-mcp": {
+          "title": "Send feedback",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The feedback was received.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       }
@@ -1361,6 +1415,86 @@
           },
           "data": {
             "$ref": "#/components/schemas/MapData"
+          }
+        }
+      },
+      "FeedbackRequest": {
+        "type": "object",
+        "required": [
+          "kind",
+          "message"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "bug",
+              "idea",
+              "other"
+            ],
+            "description": "`bug` for something broken, `idea` for a feature request, `other` for anything else."
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 5000,
+            "description": "What happened or what the user wants, in their words."
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Where to reply, for a sender with no account. Ignored when the request is authenticated: the reply goes to the account's email.\n"
+          },
+          "images": {
+            "type": "array",
+            "maxItems": 3,
+            "description": "Up to three screenshots, 2 MB each.",
+            "items": {
+              "type": "object",
+              "required": [
+                "contentType",
+                "data"
+              ],
+              "properties": {
+                "contentType": {
+                  "type": "string",
+                  "enum": [
+                    "image/png",
+                    "image/jpeg",
+                    "image/webp",
+                    "image/gif"
+                  ]
+                },
+                "data": {
+                  "type": "string",
+                  "description": "The image bytes, base64-encoded, with no data URL prefix."
+                }
+              }
+            }
+          },
+          "context": {
+            "type": "object",
+            "description": "Where the user was, so a bug report says where it happened.",
+            "properties": {
+              "mapId": {
+                "type": "string",
+                "description": "The map the feedback is about, if any."
+              },
+              "pageUrl": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "FeedbackResponse": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The feedback thread's id."
           }
         }
       },

@@ -4,7 +4,8 @@ description: >
   Drive Mindmap.io maps directly over its HTTP node API: list and
   read maps, build node subtrees with client-minted ids, attach images and PDFs
   to nodes, and run the generative node operations (submit, auto-expand, retry,
-  interrupt). Use when the user wants to create or grow a mindmap.io map, run
+  interrupt). It can also pass the user's bug reports and ideas to the
+  mindmap.io team. Use when the user wants to create or grow a mindmap.io map, run
   prompts on nodes, fan a node out into follow-ups, or read a map/branch
   programmatically without the MCP server.
 trigger: >
@@ -329,6 +330,27 @@ shallow maps with a few branches per node; `both-sides` suits a central topic
 with many first-level branches.
 
 > Via the MCP server, the same call is `set_map_layout` with `{mapId, layout}`.
+
+### Feedback
+
+Pass the user's bug report, idea, or other note to the mindmap.io team. Send it
+only when the user asks you to report or pass something on, and write it in
+their words: what they did and what happened. It lands in the team's inbox
+linked to the token's user, and a reply comes by email from
+support@mindmap.io to the account's address. Not metered.
+
+**Send feedback** — `POST /api/feedback` with `{kind, message, context?}`.
+`kind` is `bug` (something broken), `idea` (a feature request) or `other`.
+`message` is at most 5,000 characters. `context.mapId` names the map it is
+about, if any. → `{id}`. It takes five messages in a row, then one a minute;
+past that it answers `429`, so wait rather than retry.
+
+```bash
+mm /api/feedback -X POST -d '{"kind":"bug","message":"Export to PNG cuts off the right-most branch","context":{"mapId":"MAP_ID"}}'
+# → {"id":"…"}
+```
+
+> Via the MCP server, the same call is `send_feedback` with `{kind, message, mapId?}`.
 
 ## Pattern: agent-drives-recursion for auto-expand
 
