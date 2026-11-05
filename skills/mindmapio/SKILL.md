@@ -134,7 +134,7 @@ mm /api/mindmaps/MAP_ID/nodes -X POST -d '{
 }'
 ```
 
-**Update a node** — `PATCH /api/mindmaps/{mapId}/nodes/{nodeId}` with any subset of `{messages, note, node_type, is_collapsed, model_provider, model_id, color}`. Send `messages` to replace the node's content. Pure tree mutation, no LLM call, no metering. → `200 {success}`.
+**Update a node** — `PATCH /api/mindmaps/{mapId}/nodes/{nodeId}` with any subset of `{messages, note, node_type, is_collapsed, model_provider, model_id, color, position}`. Send `messages` to replace the node's content. Send `position` to move the node among its siblings: it is the 0-based destination index (not a step), the siblings in between shift by one, and the parent never changes, so a retry lands in the same place. A position outside the siblings, or on the root, is a `400`. Pure tree mutation, no LLM call, no metering. → `200 {success}`.
 
 ```bash
 mm /api/mindmaps/MAP_ID/nodes/q1 -X PATCH -d '{
