@@ -66,7 +66,7 @@ The first run builds from source, so it takes a few extra seconds. Later runs ar
 
 ### What your agent can do
 
-Seventeen tools, one per operation in the [Mindmap.io node API](https://mindmap.io/api/openapi.json).
+Nineteen tools, one per operation in the [Mindmap.io node API](https://mindmap.io/api/openapi.json).
 
 | Tool | What it does |
 | --- | --- |
@@ -79,6 +79,7 @@ Seventeen tools, one per operation in the [Mindmap.io node API](https://mindmap.
 | `publish_map` | Publish a map and get its shareable + embed links. |
 | `unpublish_map` | Make a published map private again. |
 | `set_map_layout` | Arrange a map as a tree, top-down, or with branches on both sides. |
+| `send_feedback` | Pass the user's bug report or idea to the mindmap.io team. |
 | `create_node` | Add a node under a parent. |
 | `update_node` | Edit a node's content, note, type, or model. |
 | `delete_node` | Remove a node and its children. |

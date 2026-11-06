@@ -137,6 +137,22 @@ export interface MapLayoutResponse {
   layout: MapLayout;
 }
 
+/** What a piece of feedback is: something broken, a feature request, or anything else. */
+export const FEEDBACK_KINDS = ["bug", "idea", "other"] as const;
+export type FeedbackKind = (typeof FEEDBACK_KINDS)[number];
+
+/** POST /api/feedback. Sent for the token's user; a reply goes to their account email. */
+export interface FeedbackRequest {
+  kind: FeedbackKind;
+  message: string;
+  context?: { mapId?: string };
+}
+
+/** POST /api/feedback, the feedback thread's id. */
+export interface FeedbackResponse {
+  id: string;
+}
+
 /** POST /api/mindmaps/:id/publish — mints (or reuses) the map's public slug. */
 export interface PublishMapResponse {
   publicId: string;

@@ -178,6 +178,17 @@ describe("map writes", () => {
   });
 });
 
+describe("feedback", () => {
+  it("sendFeedback POSTs the body to /api/feedback", async () => {
+    mockNext(jsonResponse({ id: "f1" }));
+    const result = await makeClient().sendFeedback({ kind: "idea", message: "Dark mode" });
+    expect(captured[0].method).toBe("POST");
+    expect(captured[0].url).toBe("https://api.example.test/api/feedback");
+    expect(captured[0].body).toEqual({ kind: "idea", message: "Dark mode" });
+    expect(result).toEqual({ id: "f1" });
+  });
+});
+
 describe("public map urls", () => {
   it("builds viewer + embed links framed by node/zoom/cz (defaults)", () => {
     const urls = makeClient().publicMapUrls("pub123");
