@@ -632,7 +632,7 @@
           "nodes"
         ],
         "summary": "Update a node",
-        "description": "Applies a structural update to a node — text, note, model, node type (set/rotate), or the collapsed flag. A pure tree mutation: no LLM call, no metering. Ownership is enforced.\n",
+        "description": "Applies a structural update to a node — text, note, model, node type (set/rotate), the collapsed flag, or its position among its siblings. A pure tree mutation: no LLM call, no metering. Ownership is enforced.\n",
         "x-mcp": {
           "title": "Update a node",
           "readOnlyHint": false,
@@ -1296,6 +1296,11 @@
           },
           "color": {
             "$ref": "#/components/schemas/NodeColorWrite"
+          },
+          "position": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Move the node to this 0-based index among its siblings. Send the destination, not a step: the siblings between the old and new spot shift by one, and retrying the same request leaves the order as it is. The parent never changes. Must be less than the number of siblings; the root cannot move.\n"
           }
         }
       },
