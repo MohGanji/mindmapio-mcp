@@ -21,8 +21,8 @@ describe("MCP server", () => {
   it("advertises one tool per documented operation, with input schemas", async () => {
     const client = await connect({} as MindmapClient);
     const { tools } = await client.listTools();
-    // 17 operations in the OpenAPI document, 17 tools.
-    expect(tools).toHaveLength(18);
+    // 19 operations in the OpenAPI document, 19 tools.
+    expect(tools).toHaveLength(19);
     const map = tools.find((t) => t.name === "get_map")!;
     expect(map.inputSchema).toBeDefined();
     expect(map.inputSchema.properties).toHaveProperty("mapId");

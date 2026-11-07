@@ -5,7 +5,7 @@ import { basename, extname, join } from "node:path";
 import { z } from "zod";
 import type { MindmapClient } from "./client.js";
 import { loadSpec, readOperations, type McpAnnotations } from "./openapi.js";
-import { MAP_LAYOUTS, ZOOM_LEVELS } from "./types.js";
+import { FEEDBACK_KINDS, MAP_LAYOUTS, ZOOM_LEVELS } from "./types.js";
 
 /**
  * A semantic MCP tool over a single API primitive. `inputSchema` is a Zod raw
@@ -237,6 +237,23 @@ function wiring(): ToolWiring[] {
           .describe("'tree' grows right from the root, 'top-down' grows downward, 'both-sides' splits the root's branches left and right."),
       },
       handler: (client, args) => client.setMapLayout(args.mapId, args.layout),
+    },
+    {
+      name: "send_feedback",
+      operationId: "submitFeedback",
+      inputSchema: {
+        kind: z
+          .enum(FEEDBACK_KINDS)
+          .describe("'bug' for something broken, 'idea' for a feature request, 'other' for anything else."),
+        message: z.string().max(5000).describe("What happened or what the user wants, in the user's words."),
+        mapId: z.string().optional().describe("The map the feedback is about, if any."),
+      },
+      handler: (client, args) =>
+        client.sendFeedback({
+          kind: args.kind,
+          message: args.message,
+          ...(args.mapId ? { context: { mapId: args.mapId } } : {}),
+        }),
     },
     {
       name: "create_node",
