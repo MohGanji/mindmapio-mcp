@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-34 -34 68 68" fill="none">
+  <defs>
+    <!-- The mascot: the single "living thought" node, centered. Hard-stop diagonal
+         two-tone, #41c9b9 (upper-left) → #0a5f58 (lower-right) — the same gradient
+         as the teal node in the logomark. -->
+    <linearGradient id="tealMascot" x1="-19.5" y1="-24" x2="18" y2="25.68" gradientUnits="userSpaceOnUse">
+      <stop offset="0.5" stop-color="#41c9b9"/>
+      <stop offset="0.5" stop-color="#0a5f58"/>
+    </linearGradient>
+  </defs>
+  <circle cx="0" cy="0" r="30" fill="url(#tealMascot)"/>
+</svg>
