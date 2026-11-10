@@ -72,3 +72,28 @@ describe("plugin manifests", () => {
     expect(published).toContain("name: mindmapio");
   });
 });
+
+/**
+ * Cursor reads its own manifest names (`.cursor-plugin/plugin.json` and a root
+ * `mcp.json`), so they sit beside the Claude files rather than replacing them.
+ * Cursor connects to the hosted server with OAuth, so no token is configured.
+ */
+describe("cursor plugin manifests", () => {
+  const cursor = read(".cursor-plugin", "plugin.json");
+  const cursorMcp = read("mcp.json");
+
+  it("connects to the hosted server, with no token to paste", () => {
+    const server = cursorMcp.mcpServers.mindmapio;
+    expect(server.url).toBe("https://mindmap.io/mcp");
+    expect(server.env).toBeUndefined();
+  });
+
+  it("names the same plugin, at the package's version", () => {
+    expect(cursor.name).toBe(manifest.name);
+    expect(cursor.version).toBe(pkg.version);
+  });
+
+  it("ships the logo it points at", () => {
+    expect(() => readFileSync(join(repoRoot, cursor.logo))).not.toThrow();
+  });
+});

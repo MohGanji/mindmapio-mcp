@@ -1,0 +1,15 @@
+{
+  "name": "mindmapio",
+  "displayName": "mindmap.io",
+  "version": "0.2.0",
+  "description": "Create mindmaps of any topic from Cursor. Every node can be an AI chat.",
+  "author": {
+    "name": "mindmap.io",
+    "email": "support@mindmap.io"
+  },
+  "homepage": "https://mindmap.io/",
+  "repository": "https://github.com/MohGanji/mindmapio-mcp",
+  "license": "MIT",
+  "keywords": ["mindmap", "research", "notes", "knowledge", "mcp"],
+  "logo": "assets/logo.svg"
+}
