@@ -481,7 +481,7 @@
           "feedback"
         ],
         "summary": "Send feedback to the mindmap.io team",
-        "description": "Sends a bug report, an idea, or any other note from the user to the mindmap.io team. Use it when the user asks you to report a problem, request a feature, or pass something on. Write the message in the user's words, with what they did and what happened. It lands in the team's inbox linked to the user's account, and a reply comes by email from support@mindmap.io to the account's address. Not metered. Five messages in a row, then one a minute.\n",
+        "description": "Sends a bug report, a feature request, or any other note from the user to the mindmap.io team. The message is stored as written and lands in the team's inbox linked to the user's account, and a reply comes by email from support@mindmap.io to the account's address. Not metered. Five messages in a row, then one a minute.\n",
         "x-mcp": {
           "title": "Send feedback",
           "readOnlyHint": false,
@@ -800,7 +800,7 @@
           "generation"
         ],
         "summary": "Auto-expand a node into queued follow-up children",
-        "description": "Generates follow-up prompts for the node's thread and creates them as `queued` child nodes, returning their ids — one child per prompt. How many prompts is the model's call, read from the node's own thread, so it varies by node; there is nothing to size or steer. A level holds a handful, and wider material comes back grouped, one prompt per group, so its members arrive a level further down. One level only: it does NOT run the children and does NOT recurse — the agent submits each returned child via the submit operation itself. Metered by the usage gate against the token's user; over budget returns 429. Ownership is enforced.\n",
+        "description": "Generates follow-up prompts for the node's thread and creates them as `queued` child nodes, returning their ids — one child per prompt. How many prompts is the model's call, read from the node's own thread, so it varies by node; there is nothing to size or steer. A level holds a handful, and wider material comes back grouped, one prompt per group, so its members arrive a level further down. One level only: the children are created `queued` and are not run, and nothing recurses. Each child runs only when it is submitted; until then it reads back as `interrupted`. A node that already has children is refused with 409 `node_has_children`. Metered by the usage gate against the token's user; over budget returns 429. Ownership is enforced.\n",
         "x-mcp": {
           "title": "Auto-expand a node",
           "readOnlyHint": false,
@@ -1234,7 +1234,7 @@
             "properties": {
               "messages": {
                 "type": "array",
-                "description": "Node content as the canonical messages array (UIMessage shape: role + parts[].text). This is the source of truth — prefer it.\n",
+                "description": "Node content as the canonical messages array (UIMessage shape: role + parts[].text). It is the node's source of truth; the deprecated `text` field is converted into it.\n",
                 "items": {
                   "type": "object"
                 }
@@ -1245,7 +1245,7 @@
               "text": {
                 "type": "string",
                 "deprecated": true,
-                "description": "Legacy content field. Still accepted (the server derives the messages user turn from it) but deprecated — send `messages`.\n"
+                "description": "Legacy content field. Still accepted (the server derives the messages user turn from it) but deprecated in favor of `messages`.\n"
               },
               "node_type": {
                 "type": "string",
@@ -1268,7 +1268,7 @@
         "properties": {
           "messages": {
             "type": "array",
-            "description": "Updated node content as the canonical messages array (UIMessage shape). This is the source of truth — prefer it.\n",
+            "description": "Updated node content as the canonical messages array (UIMessage shape). It is the node's source of truth.\n",
             "items": {
               "type": "object"
             }
@@ -1279,7 +1279,7 @@
           "text": {
             "type": "string",
             "deprecated": true,
-            "description": "Legacy content field. Still accepted but deprecated — send `messages`.\n"
+            "description": "Legacy content field. Still accepted but deprecated in favor of `messages`.\n"
           },
           "node_type": {
             "type": "string",
@@ -1578,7 +1578,7 @@
           "clay",
           null
         ],
-        "description": "Tint the node's card with one of eight pastels, or send `null` to clear the tint back to the default white card. Omitting the field leaves the node's current color alone.\n\nColor is presentational and carries no fixed meaning: it does not reach the model, change what a node generates, or encode a node's status (the card's border carries selection and generation state). It is whatever the person has decided it means on their map — usually grouping a branch or flagging threads to come back to. So set a color only when the user asks for one or has told you their scheme, use their words for it rather than inventing a legend, and preserve the colors already on a map when you reorganize it: recoloring someone's nodes silently destroys the meaning they put there. Applies to any node type, and is never refused by the descendant-answer edit lock that blocks content changes.\n"
+        "description": "Tint the node's card with one of eight pastels, or send `null` to clear the tint back to the default white card. Omitting the field leaves the node's current color alone.\n\nColor is presentational and carries no fixed meaning: it does not reach the model, change what a node generates, or encode a node's status (the card's border carries selection and generation state). It is whatever the person has decided it means on their map, usually grouping a branch or flagging threads to come back to, so changing the colors already on a map changes the meaning the person put there. Applies to any node type, and is never refused by the descendant-answer edit lock that blocks content changes.\n"
       },
       "Node": {
         "type": "object",

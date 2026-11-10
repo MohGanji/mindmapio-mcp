@@ -89,7 +89,7 @@ describe("tool catalogue", () => {
     expect(submit.description).toContain("429");
 
     const expand = tool("auto_expand");
-    expect(expand.description).toContain("does NOT recurse");
+    expect(expand.description).toContain("nothing recurses");
   });
 
   it("annotates every tool with the title and hints the directories require", () => {
