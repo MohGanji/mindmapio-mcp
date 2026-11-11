@@ -19,6 +19,8 @@ import {
   type PublicMapUrls,
   type PublishMapResponse,
   type RespondResponse,
+  type SearchNodesRequest,
+  type SearchNodesResponse,
   type SubmitNodeRequest,
   type SubmitNodeResponse,
   type SubtreeNode,
@@ -174,6 +176,14 @@ export class MindmapClient {
   getSubtree(mapId: string, nodeId: string, depth?: number): Promise<SubtreeNode> {
     const query = depth === undefined ? "" : `?depth=${depth}`;
     return this.#request<SubtreeNode>("GET", `${this.#nodePath(mapId, nodeId)}/subtree${query}`);
+  }
+
+  /** Search the user's maps (or one map) and get back where each match is. */
+  searchNodes({ q, mapId, limit }: SearchNodesRequest): Promise<SearchNodesResponse> {
+    const params = new URLSearchParams({ q });
+    if (mapId !== undefined) params.set("mapId", mapId);
+    if (limit !== undefined) params.set("limit", String(limit));
+    return this.#request<SearchNodesResponse>("GET", `/api/mindmaps/search?${params}`);
   }
 
   // --- nodes (write) ------------------------------------------------------

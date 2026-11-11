@@ -1,7 +1,7 @@
 ---
 name: mindmapio
 description: >
-  Drive Mindmap.io maps directly over its HTTP node API: list and
+  Drive Mindmap.io maps directly over its HTTP node API: list, search and
   read maps, build node subtrees with client-minted ids, attach images and PDFs
   to nodes, and run the generative node operations (submit, auto-expand, retry,
   interrupt). It can also pass the user's bug reports and ideas to the
@@ -85,6 +85,38 @@ mm /api/mindmaps/MAP_ID/nodes/NODE_ID
 ```bash
 mm "/api/mindmaps/MAP_ID/nodes/NODE_ID/subtree?depth=2"
 ```
+
+### Search
+
+Search finds nodes across every map the user owns by what they say: the
+prompt and the answer, the note, the zoom summaries, the file names and image
+descriptions of attachments, and on a root node the map's title. A result is
+the node's address rather than its content, so read what you find with the
+node and subtree reads above. Not metered.
+
+**Search maps** — `GET /api/mindmaps/search?q=QUERY` → `{results: [{mapId, mapTitle, nodeId, path, field, snippet}]}`, best match first. `path` runs from the root to the node, each step `{nodeId, label}`. `field` says where the match is: `content`, `note`, `summary`, `attachment` or `mapTitle`. Add `mapId` to search one map, and `limit` for how many results (20 by default, 50 at most).
+
+`q` is plain words, all of which must appear (`kitchen budget`). Quote a phrase
+to match it in order (`"kitchen budget"`), put `OR` between two terms to accept
+either (`tiles OR flooring`), start a term with `-` to leave out nodes holding it
+(`budget -kitchen`), and end one with `*` to match any word it begins
+(`renovat*`). Other forms of a word match on their own, so `plants` finds
+`plant`. A query that cannot be read (an unclosed quote, an `OR` with nothing on
+one side, only excluded terms) answers `400` with what to change.
+
+```bash
+mm /api/mindmaps/search -G --data-urlencode 'q="kitchen budget" OR renovation' -d limit=5
+# → {"results":[{"mapId":"MAP_ID","mapTitle":"memory-home","nodeId":"n7",
+#    "path":[{"nodeId":"root","label":"memory-home"},{"nodeId":"n7","label":"Kitchen budget"}],
+#    "field":"content","snippet":"…settled the kitchen budget at $18k, cabinets first…"}]}
+
+# then read the match, or the branch around it
+mm /api/mindmaps/MAP_ID/nodes/n7
+mm "/api/mindmaps/MAP_ID/nodes/n7/subtree?depth=1"
+```
+
+> Via the MCP server, the same call is `search_nodes` with `{q, mapId?, limit?}`;
+> follow a result with `get_node` or `get_subtree` on its `mapId` and `nodeId`.
 
 ### Structural write
 

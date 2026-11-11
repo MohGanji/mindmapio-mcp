@@ -170,6 +170,20 @@ function wiring(): ToolWiring[] {
       handler: (client, args) => client.getSubtree(args.mapId, args.nodeId, args.depth),
     },
     {
+      name: "search_nodes",
+      operationId: "searchNodes",
+      inputSchema: {
+        q: z
+          .string()
+          .min(1)
+          .max(500)
+          .describe('Plain words, all required. "a phrase" in quotes, OR between two terms, -term to exclude, term* for a prefix.'),
+        mapId: mapId.optional().describe("Search only this map; omitted, every map the user owns."),
+        limit: z.number().int().min(1).max(50).optional().describe("How many results, best first (default 20, at most 50)."),
+      },
+      handler: (client, args) => client.searchNodes(compact({ q: args.q, mapId: args.mapId, limit: args.limit }) as { q: string }),
+    },
+    {
       name: "create_map",
       operationId: "createMap",
       inputSchema: {

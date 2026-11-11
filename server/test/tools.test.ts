@@ -24,6 +24,7 @@ function fakeClient(): MindmapClient {
     }),
     getNode: vi.fn().mockResolvedValue({ node: { id: "n1", children: [] }, children: [] }),
     getSubtree: vi.fn().mockResolvedValue({ node: { id: "n1", children: [] }, children: [] }),
+    searchNodes: vi.fn().mockResolvedValue({ results: [] }),
     createNode: vi.fn().mockResolvedValue({ id: "n1", children: [] }),
     updateNode: vi.fn().mockResolvedValue({ success: true }),
     deleteNode: vi.fn().mockResolvedValue({ success: true }),
@@ -63,6 +64,7 @@ describe("tool catalogue", () => {
         "list_maps",
         "publish_map",
         "retry_node",
+        "search_nodes",
         "submit_node",
         "read_attachment",
         "send_feedback",
@@ -137,7 +139,7 @@ describe("tool catalogue", () => {
   });
 
   it("marks the read tools read-only", () => {
-    for (const name of ["list_maps", "get_map", "get_node", "get_subtree"]) {
+    for (const name of ["list_maps", "get_map", "get_node", "get_subtree", "search_nodes"]) {
       expect(tool(name).annotations.readOnlyHint).toBe(true);
     }
     expect(tool("create_node").annotations.readOnlyHint).toBe(false);
@@ -168,6 +170,22 @@ describe("read tool wiring", () => {
     const client = fakeClient();
     await tool("get_subtree").handler(client, { mapId: "m1", nodeId: "n1", depth: 2 });
     expect(client.getSubtree).toHaveBeenCalledWith("m1", "n1", 2);
+  });
+
+  it("search_nodes passes the query, and the map and limit only when given", async () => {
+    const client = fakeClient();
+    await tool("search_nodes").handler(client, { q: "kitchen budget" });
+    expect(client.searchNodes).toHaveBeenCalledWith({ q: "kitchen budget" });
+    await tool("search_nodes").handler(client, { q: "tiles", mapId: "m1", limit: 5 });
+    expect(client.searchNodes).toHaveBeenLastCalledWith({ q: "tiles", mapId: "m1", limit: 5 });
+  });
+
+  it("search_nodes holds limit to what the API serves", () => {
+    const limit = tool("search_nodes").inputSchema.limit;
+    expect(limit.safeParse(50).success).toBe(true);
+    expect(limit.safeParse(51).success).toBe(false);
+    expect(limit.safeParse(0).success).toBe(false);
+    expect(tool("search_nodes").inputSchema.q.safeParse("").success).toBe(false);
   });
 });
 

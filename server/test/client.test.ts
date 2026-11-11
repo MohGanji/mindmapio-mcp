@@ -130,6 +130,25 @@ describe("read endpoints", () => {
       "https://api.example.test/api/mindmaps/m1/nodes/n1/subtree?depth=0",
     );
   });
+
+  it("searchNodes GETs /api/mindmaps/search with the query encoded", async () => {
+    const results = [{ mapId: "m1", mapTitle: "Kitchen", nodeId: "n1", path: [], field: "content", snippet: "budget" }];
+    mockNext(jsonResponse({ results }));
+    const result = await makeClient().searchNodes({ q: '"kitchen budget" -tiles' });
+    expect(captured[0].method).toBe("GET");
+    expect(captured[0].url).toBe(
+      "https://api.example.test/api/mindmaps/search?q=%22kitchen+budget%22+-tiles",
+    );
+    expect(result).toEqual({ results });
+  });
+
+  it("searchNodes adds mapId and limit only when given", async () => {
+    mockNext(jsonResponse({ results: [] }));
+    await makeClient().searchNodes({ q: "tiles", mapId: "m 1", limit: 5 });
+    expect(captured[0].url).toBe(
+      "https://api.example.test/api/mindmaps/search?q=tiles&mapId=m+1&limit=5",
+    );
+  });
 });
 
 describe("map writes", () => {
