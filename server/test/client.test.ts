@@ -236,7 +236,7 @@ describe("node writes", () => {
 
   it("createNodes POSTs the batch to /api/mindmaps/{mapId}/nodes/batch", async () => {
     mockNext(jsonResponse({ nodeIds: ["a", "b"] }, 201));
-    const body = { nodes: { a: { parentId: "r", children: ["b"] }, b: { parentId: "a" } } };
+    const body = { rootIds: ["a"], nodes: { a: { parentId: "r", children: ["b"] }, b: { parentId: "a" } } };
     const result = await makeClient().createNodes("m1", body);
     expect(captured[0].method).toBe("POST");
     expect(captured[0].url).toBe("https://api.example.test/api/mindmaps/m1/nodes/batch");

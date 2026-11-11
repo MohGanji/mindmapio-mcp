@@ -355,9 +355,22 @@ describe("create_nodes wiring", () => {
       },
       detail: { parentId: "topic", nodeType: "data", isCollapsed: true },
     };
-    const result = await tool("create_nodes").handler(client, { mapId: "m1", nodes });
-    expect(client.createNodes).toHaveBeenCalledWith("m1", { nodes });
+    const result = await tool("create_nodes").handler(client, { mapId: "m1", rootIds: ["topic"], nodes });
+    expect(client.createNodes).toHaveBeenCalledWith("m1", { rootIds: ["topic"], nodes });
     expect(result).toEqual({ nodeIds: ["topic", "detail"] });
+  });
+
+  it("requires the order of the nodes hanging from the map as an array", () => {
+    const rootIds = tool("create_nodes").inputSchema.rootIds;
+    expect(rootIds.safeParse(["a", "b"]).success).toBe(true);
+    expect(rootIds.safeParse(undefined).success).toBe(false);
+  });
+
+  it("only offers user turns, since a new node's answer comes from running it", () => {
+    const nodes = tool("create_nodes").inputSchema.nodes;
+    const turn = (role: string) => ({ a: { parentId: "r", messages: [{ role, parts: [{ type: "text", text: "x" }] }] } });
+    expect(nodes.safeParse(turn("user")).success).toBe(true);
+    expect(nodes.safeParse(turn("assistant")).success).toBe(false);
   });
 
   it("refuses a node type the API does not take before sending anything", () => {

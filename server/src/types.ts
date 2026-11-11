@@ -99,8 +99,12 @@ export interface NewNode {
   isCollapsed?: boolean;
 }
 
-/** Up to 200 new nodes keyed by client-minted id, written atomically. */
+/**
+ * Up to 200 new nodes keyed by client-minted id, written atomically. `rootIds`
+ * orders the nodes whose parent already exists; object keys never carry order.
+ */
 export interface CreateNodesRequest {
+  rootIds: string[];
   nodes: Record<string, NewNode>;
 }
 

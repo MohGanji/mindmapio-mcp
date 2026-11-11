@@ -99,6 +99,26 @@ const messages = z
   )
   .describe("Node content as a UIMessage array (e.g. one user turn with text parts).");
 
+/**
+ * A new node's content: user turns only. The API refuses any other role on
+ * create, since a node's answer comes from running it.
+ */
+const userTurns = z
+  .array(
+    z.object({
+      role: z.literal("user").describe("Always 'user' on a new node."),
+      parts: z
+        .array(
+          z.object({
+            type: z.literal("text").describe("The part type; use 'text'."),
+            text: z.string().describe("The text content of this part; markdown is fine."),
+          }),
+        )
+        .describe("Ordered content parts for this message."),
+    }),
+  )
+  .describe("Node content as a UIMessage array: one user turn with text parts.");
+
 /** The node card tints the app offers, as stable palette keys. */
 const NODE_COLORS = [
   "rose",
@@ -153,9 +173,7 @@ const newNode = z.object({
     .optional()
     .describe("This node's children in order: exactly the batch nodes whose parentId is this node, each once."),
   nodeType: nodeType.optional(),
-  messages: messages
-    .optional()
-    .describe("The node's content as a UIMessage array; text parts carry plain text or markdown."),
+  messages: userTurns.optional(),
   note: z.string().optional(),
   color,
   isCollapsed: z.boolean().optional().describe("Create the node with its children hidden."),
@@ -300,9 +318,7 @@ function wiring(): ToolWiring[] {
           .nullable()
           .optional()
           .describe("Insert index among the parent's children; appended when omitted."),
-        messages: messages
-          .optional()
-          .describe("Initial node content as a UIMessage array (a data/note node's body is a user message too)."),
+        messages: userTurns.optional(),
         note: z.string().optional().describe("Initial node note."),
         nodeType: nodeType.optional(),
         isCollapsed: z.boolean().optional().describe("Create the node with its children hidden."),
@@ -330,11 +346,16 @@ function wiring(): ToolWiring[] {
       operationId: "createNodes",
       inputSchema: {
         mapId,
+        rootIds: z
+          .array(z.string())
+          .min(1)
+          .describe("The new nodes whose parent already exists, in the order they are appended under it."),
         nodes: z
           .record(z.string(), newNode)
           .describe("The new nodes keyed by client-minted id, 1 to 200 of them."),
       },
-      handler: (client, args) => client.createNodes(args.mapId, { nodes: args.nodes }),
+      handler: (client, args) =>
+        client.createNodes(args.mapId, { rootIds: args.rootIds, nodes: args.nodes }),
     },
     {
       name: "update_node",
