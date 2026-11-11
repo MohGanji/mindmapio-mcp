@@ -24,7 +24,8 @@ same primitives, no MCP client required, just authenticated HTTP calls.
 The API is the authoritative contract — match the shapes in the examples
 exactly. A map's `data` is a tree of nodes, the same shape every read returns,
 with camelCase fields like `nodeType` and `parentId`. The single-node write
-endpoints take their own snake_case fields like `node_type`.
+endpoints take their own snake_case fields like `node_type`; the batch create
+takes nodes in the map's own camelCase shape.
 
 ## Setup
 
@@ -109,7 +110,7 @@ mm /api/mindmaps -X POST -d '{
 }'
 ```
 
-**Create a node** — `POST /api/mindmaps/{mapId}/nodes` with `{nodeId, parentId, position?, data?}`. `nodeId` must be unique within the map; mint a uuid yourself, since reusing one returns `409`. `data` may carry `{messages, note, node_type, color}`, where `messages` is the node's content as a UIMessage array. The node is born structural (a draft); running it is a separate generative call. → `201` full node.
+**Create a node** — `POST /api/mindmaps/{mapId}/nodes` with `{nodeId, parentId, position?, data?}`. `nodeId` must be unique within the map; mint a uuid yourself, since reusing one returns `409`. `data` may carry `{messages, note, node_type, color, is_collapsed}`, where `messages` is the node's content as a UIMessage array and `node_type` is `prompt`, `data` or `expand`. The node is born structural (a draft); running it is a separate generative call. → `201` full node.
 
 ```bash
 mm /api/mindmaps/MAP_ID/nodes -X POST -d '{
@@ -134,6 +135,38 @@ mm /api/mindmaps/MAP_ID/nodes -X POST -d '{
   }
 }'
 ```
+
+**Create many nodes** — `POST /api/mindmaps/{mapId}/nodes/batch` with `{nodes}`: up to 200 new nodes in one call, in the shape a map's `data.nodes` uses. `nodes` maps each id you mint to a node with its `parentId`, its `children` in order, and the camelCase fields a map read returns: `nodeType` (`prompt`, `data` or `expand`), `messages`, `note`, `color` and `isCollapsed`. A `parentId` is a node already in the map or another node in the batch, so one call lays out whole branches at any depth. → `201 {nodeIds}`, each parent before its children.
+
+The call only adds, so the nodes already on the map stay exactly as they are. New nodes under an existing node go after its current children, in the order you list them. A new node's children go in the order of its `children`, which lists exactly the batch nodes naming it as their parent. The batch is checked whole and written in one transaction, so it lands complete or not at all, and the error names the node to fix: `400` for a malformed batch (over 200 nodes, a field such as `status` or `text`, `children` that disagree with the `parentId`s, a cycle), `404` for a `parentId` found in neither the map nor the batch, `409` for an id the map already holds. Nodes are born drafts and nothing generates; `data` nodes get their zoom summaries a moment later. A node's text can be multi-line markdown.
+
+```bash
+mm /api/mindmaps/MAP_ID/nodes/batch -X POST -d '{
+  "nodes": {
+    "ch1": {
+      "parentId": "root",
+      "nodeType": "data",
+      "messages": [{ "role": "user", "parts": [{ "type": "text", "text": "## Chapter 1\n\nThe setup and the cast." }] }],
+      "children": ["ch1-q"]
+    },
+    "ch1-q": {
+      "parentId": "ch1",
+      "nodeType": "prompt",
+      "messages": [{ "role": "user", "parts": [{ "type": "text", "text": "What does chapter 1 set up?" }] }]
+    },
+    "ch2": {
+      "parentId": "root",
+      "nodeType": "data",
+      "messages": [{ "role": "user", "parts": [{ "type": "text", "text": "## Chapter 2" }] }]
+    }
+  }
+}'
+# → {"nodeIds":["ch1","ch1-q","ch2"]}
+```
+
+To build a new map from a document, create the map with its root, then add everything under the root in one batch. Past 200 nodes, send the parents first and their branches in the next call.
+
+> Via the MCP server, the same call is `create_nodes` with `{mapId, nodes}`.
 
 **Update a node** — `PATCH /api/mindmaps/{mapId}/nodes/{nodeId}` with any subset of `{messages, note, node_type, is_collapsed, model_provider, model_id, color, position}`. Send `messages` to replace the node's content. Send `position` to move the node among its siblings: it is the 0-based destination index (not a step), the siblings in between shift by one, and the parent never changes, so a retry lands in the same place. A position outside the siblings, or on the root, is a `400`. Pure tree mutation, no LLM call, no metering. → `200 {success}`.
 

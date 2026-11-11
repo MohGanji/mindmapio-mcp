@@ -5,7 +5,7 @@ import { basename, extname, join } from "node:path";
 import { z } from "zod";
 import type { MindmapClient } from "./client.js";
 import { loadSpec, readOperations, type McpAnnotations } from "./openapi.js";
-import { FEEDBACK_KINDS, MAP_LAYOUTS, ZOOM_LEVELS } from "./types.js";
+import { FEEDBACK_KINDS, MAP_LAYOUTS, NODE_TYPES, ZOOM_LEVELS } from "./types.js";
 
 /**
  * A semantic MCP tool over a single API primitive. `inputSchema` is a Zod raw
@@ -133,6 +133,33 @@ const color = z
       "or flagging scheme — so set one only when they ask or have described their scheme, and " +
       "leave the colors already on a map alone when you reorganize it.",
   );
+
+/** A node's type. The API refuses anything else, so the schema does too. */
+const nodeType = z
+  .enum(NODE_TYPES)
+  .describe("'prompt' is a question a model answers when submitted, 'data' holds content kept as written (the app calls it a note), 'expand' fans out into follow-up questions. Defaults to 'prompt'.");
+
+/**
+ * One node of a create_nodes batch, in the shape a map's `data.nodes` uses —
+ * camelCase, unlike the single-node writes, because it IS that shape.
+ */
+const newNode = z.object({
+  id: z.string().optional().describe("Optional; when sent, it equals the node's key in nodes."),
+  parentId: z
+    .string()
+    .describe("The id of a node already in the map, or of another node in this batch."),
+  children: z
+    .array(z.string())
+    .optional()
+    .describe("This node's children in order: exactly the batch nodes whose parentId is this node, each once."),
+  nodeType: nodeType.optional(),
+  messages: messages
+    .optional()
+    .describe("The node's content as a UIMessage array; text parts carry plain text or markdown."),
+  note: z.string().optional(),
+  color,
+  isCollapsed: z.boolean().optional().describe("Create the node with its children hidden."),
+});
 
 function wiring(): ToolWiring[] {
   return [
@@ -277,7 +304,8 @@ function wiring(): ToolWiring[] {
           .optional()
           .describe("Initial node content as a UIMessage array (a data/note node's body is a user message too)."),
         note: z.string().optional().describe("Initial node note."),
-        nodeType: z.string().optional().describe("The node's type (e.g. prompt, data, expand)."),
+        nodeType: nodeType.optional(),
+        isCollapsed: z.boolean().optional().describe("Create the node with its children hidden."),
         color,
       },
       handler: (client, args) => {
@@ -285,6 +313,7 @@ function wiring(): ToolWiring[] {
           messages: args.messages,
           note: args.note,
           node_type: args.nodeType,
+          is_collapsed: args.isCollapsed,
           color: args.color,
         });
         const body = compact({
@@ -295,6 +324,17 @@ function wiring(): ToolWiring[] {
         });
         return client.createNode(args.mapId, body as any);
       },
+    },
+    {
+      name: "create_nodes",
+      operationId: "createNodes",
+      inputSchema: {
+        mapId,
+        nodes: z
+          .record(z.string(), newNode)
+          .describe("The new nodes keyed by client-minted id, 1 to 200 of them."),
+      },
+      handler: (client, args) => client.createNodes(args.mapId, { nodes: args.nodes }),
     },
     {
       name: "update_node",

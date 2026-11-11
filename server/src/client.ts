@@ -9,6 +9,8 @@ import {
   type CreateMapRequest,
   type CreateMapResponse,
   type CreateNodeRequest,
+  type CreateNodesRequest,
+  type CreateNodesResponse,
   type FeedbackRequest,
   type FeedbackResponse,
   type MapLayout,
@@ -180,6 +182,11 @@ export class MindmapClient {
 
   createNode(mapId: string, body: CreateNodeRequest): Promise<Node> {
     return this.#request<Node>("POST", `${this.#mapPath(mapId)}/nodes`, body);
+  }
+
+  /** Create many nodes in one atomic write: all of them land, or none does. */
+  createNodes(mapId: string, body: CreateNodesRequest): Promise<CreateNodesResponse> {
+    return this.#request<CreateNodesResponse>("POST", `${this.#mapPath(mapId)}/nodes/batch`, body);
   }
 
   updateNode(mapId: string, nodeId: string, body: UpdateNodeRequest): Promise<SuccessResponse> {

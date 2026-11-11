@@ -582,6 +582,64 @@
         }
       }
     },
+    "/api/mindmaps/{mapId}/nodes/batch": {
+      "post": {
+        "operationId": "createNodes",
+        "tags": [
+          "nodes"
+        ],
+        "summary": "Create many nodes in one call",
+        "description": "Adds up to 200 new nodes to an existing map in one atomic write, in the shape a map's `data.nodes` uses: `nodes` is an object keyed by client-minted node id, and each node names its `parentId` and lists its own `children` in order. A `parentId` is a node already in the map or another node in the batch, so one call hangs whole subtrees, at any depth, under any existing nodes. It only adds: existing nodes are never edited, moved or replaced.\n\nNew nodes under an existing node are appended after its current children, in the order `nodes` lists them. The children of a new node follow its `children` array, which names exactly the batch nodes whose `parentId` is that node.\n\nEach node is held to the rules of a single created node and is born structural (a `draft`); nothing generates. Content is the `messages` array, whose text parts carry plain text or markdown. A note (`data`) node gets its zoom summaries shortly after the call returns.\n\nThe whole batch is validated before anything is written, then written in one transaction: every node lands, or none does. A refusal names the node at fault. 400: not an object keyed by id, empty or over 200 nodes, an unknown field, an `id` that differs from its key, `children` that disagree with the `parentId`s, a cycle, or a value a single create refuses. 404: the map, or a `parentId` found in neither the map nor the batch. 409: an id the map already holds. Returns the new ids, each parent before its children. Ownership is enforced.\n",
+        "x-mcp": {
+          "title": "Create many nodes",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/MapId2"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateNodesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Every node in the batch was created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateNodesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
     "/api/mindmaps/{mapId}/nodes/{nodeId}": {
       "get": {
         "operationId": "getNode",
@@ -1248,11 +1306,14 @@
                 "description": "Legacy content field. Still accepted (the server derives the messages user turn from it) but deprecated in favor of `messages`.\n"
               },
               "node_type": {
-                "type": "string",
-                "description": "The node's type (e.g. prompt, data, expand)."
+                "$ref": "#/components/schemas/NodeType"
               },
               "color": {
                 "$ref": "#/components/schemas/NodeColorWrite"
+              },
+              "is_collapsed": {
+                "type": "boolean",
+                "description": "Create the node with its children hidden on the canvas. Defaults to false."
               }
             }
           }
@@ -1261,6 +1322,92 @@
           "nodeId",
           "parentId"
         ]
+      },
+      "NodeType": {
+        "type": "string",
+        "enum": [
+          "prompt",
+          "data",
+          "expand"
+        ],
+        "description": "The node's type, `prompt` when omitted. A `prompt` node is a question a model answers when the node is submitted, a `data` node holds content kept as written (the app calls it a note), and an `expand` node is a seed that fans out into follow-up questions.\n"
+      },
+      "CreateNodesRequest": {
+        "type": "object",
+        "required": [
+          "nodes"
+        ],
+        "properties": {
+          "nodes": {
+            "type": "object",
+            "description": "The new nodes, keyed by client-minted node id, each id unique within the map. Between 1 and 200 nodes.\n",
+            "minProperties": 1,
+            "maxProperties": 200,
+            "additionalProperties": {
+              "$ref": "#/components/schemas/NewNode"
+            }
+          }
+        }
+      },
+      "NewNode": {
+        "type": "object",
+        "description": "One new node, in the shape a map's `data.nodes` uses.",
+        "additionalProperties": false,
+        "required": [
+          "parentId"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Optional; when sent, it equals the node's key in `nodes`."
+          },
+          "parentId": {
+            "type": "string",
+            "description": "The id of a node already in the map, or of another node in this batch."
+          },
+          "children": {
+            "type": "array",
+            "description": "The ids of this node's children, in order: exactly the batch nodes whose `parentId` is this node, each once. Omitted or empty for a leaf.\n",
+            "items": {
+              "type": "string"
+            }
+          },
+          "nodeType": {
+            "$ref": "#/components/schemas/NodeType"
+          },
+          "messages": {
+            "type": "array",
+            "description": "The node's content as the canonical messages array (UIMessage shape: role + parts[].text), usually one user turn. Text parts carry plain text or markdown.\n",
+            "items": {
+              "type": "object"
+            }
+          },
+          "note": {
+            "type": "string"
+          },
+          "color": {
+            "$ref": "#/components/schemas/NodeColorWrite"
+          },
+          "isCollapsed": {
+            "type": "boolean",
+            "description": "Create the node with its children hidden on the canvas. Defaults to false."
+          }
+        }
+      },
+      "CreateNodesResponse": {
+        "type": "object",
+        "required": [
+          "nodeIds"
+        ],
+        "properties": {
+          "nodeIds": {
+            "type": "array",
+            "description": "The new node ids in the order they were written, each parent before its children.",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
       },
       "UpdateNodeRequest": {
         "type": "object",
