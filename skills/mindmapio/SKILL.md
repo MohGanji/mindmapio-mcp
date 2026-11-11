@@ -94,21 +94,30 @@ descriptions of attachments, and on a root node the map's title. A result is
 the node's address rather than its content, so read what you find with the
 node and subtree reads above. Not metered.
 
-**Search maps** — `GET /api/mindmaps/search?q=QUERY` → `{results: [{mapId, mapTitle, nodeId, path, field, snippet}]}`, best match first. `path` runs from the root to the node, each step `{nodeId, label}`. `field` says where the match is: `content`, `note`, `summary`, `attachment` or `mapTitle`. Add `mapId` to search one map, and `limit` for how many results (20 by default, 50 at most).
+**Search maps** — `GET /api/mindmaps/search?q=QUERY` → `{results: [{mapId, mapTitle, nodeId, path, field, snippet}], truncated}`, best match first. `path` runs from the root to the node, each step `{nodeId, label}`; a path deeper than eight steps keeps the root and the last six, with one `{nodeId: null, label: "…"}` between. `field` says where the match is: `content`, `note`, `summary`, `attachment` or `mapTitle`. Add `mapId` to search one map (empty means every map), and `limit` for how many results, a whole number from 1 to 50 (20 by default). `truncated: true` means more nodes matched than came back: narrow the query or add `mapId`, since there is no paging.
 
-`q` is plain words, all of which must appear (`kitchen budget`). Quote a phrase
-to match it in order (`"kitchen budget"`), put `OR` between two terms to accept
-either (`tiles OR flooring`), start a term with `-` to leave out nodes holding it
-(`budget -kitchen`), and end one with `*` to match any word it begins
-(`renovat*`). Other forms of a word match on their own, so `plants` finds
-`plant`. A query that cannot be read (an unclosed quote, an `OR` with nothing on
-one side, only excluded terms) answers `400` with what to change.
+Every word has to be in the same node, so search with one to three distinctive
+words from the node itself, not the map's title or a parent's words. `q` is
+plain words, all of which must appear (`kitchen budget`; `AND` between them says
+the same). Quote a phrase to match it in order (`"kitchen budget"`, curly quotes
+too), put `OR` between two terms to accept either (`tiles OR flooring`), and put
+`-` or `NOT` before a term to leave out nodes holding it (`budget -kitchen`,
+`budget NOT kitchen`). End a term with `*` to match any word it begins
+(`renovat*`). Only uppercase `AND`, `OR` and `NOT` are operators, and `-5` is a
+number to find. Other forms of a word match on their own, so `plants` finds
+`plant`. In text written without spaces (Chinese, Japanese, Thai) a run of
+characters is one word, so search for its start with `*` (`コーヒー*`). When
+nothing comes back, try fewer words, another form, a prefix or `OR` before
+concluding there is nothing. A query that cannot be read (an unclosed quote, an
+`OR` or `NOT` with nothing beside it, only excluded terms), a bad `limit`, or a
+parameter sent twice answers `400` with what to change.
 
 ```bash
 mm /api/mindmaps/search -G --data-urlencode 'q="kitchen budget" OR renovation' -d limit=5
 # → {"results":[{"mapId":"MAP_ID","mapTitle":"memory-home","nodeId":"n7",
 #    "path":[{"nodeId":"root","label":"memory-home"},{"nodeId":"n7","label":"Kitchen budget"}],
-#    "field":"content","snippet":"…settled the kitchen budget at $18k, cabinets first…"}]}
+#    "field":"content","snippet":"…settled the kitchen budget at $18k, cabinets first…"}],
+#    "truncated":false}
 
 # then read the match, or the branch around it
 mm /api/mindmaps/MAP_ID/nodes/n7

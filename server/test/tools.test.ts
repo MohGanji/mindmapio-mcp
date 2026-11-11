@@ -24,7 +24,7 @@ function fakeClient(): MindmapClient {
     }),
     getNode: vi.fn().mockResolvedValue({ node: { id: "n1", children: [] }, children: [] }),
     getSubtree: vi.fn().mockResolvedValue({ node: { id: "n1", children: [] }, children: [] }),
-    searchNodes: vi.fn().mockResolvedValue({ results: [] }),
+    searchNodes: vi.fn().mockResolvedValue({ results: [], truncated: false }),
     createNode: vi.fn().mockResolvedValue({ id: "n1", children: [] }),
     updateNode: vi.fn().mockResolvedValue({ success: true }),
     deleteNode: vi.fn().mockResolvedValue({ success: true }),

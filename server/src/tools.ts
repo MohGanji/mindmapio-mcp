@@ -177,7 +177,7 @@ function wiring(): ToolWiring[] {
           .string()
           .min(1)
           .max(500)
-          .describe('Plain words, all required. "a phrase" in quotes, OR between two terms, -term to exclude, term* for a prefix.'),
+          .describe('Plain words, all required, all in the same node. "a phrase" in quotes, OR between two terms, -term or NOT term to exclude, term* for a prefix.'),
         mapId: mapId.optional().describe("Search only this map; omitted, every map the user owns."),
         limit: z.number().int().min(1).max(50).optional().describe("How many results, best first (default 20, at most 50)."),
       },
