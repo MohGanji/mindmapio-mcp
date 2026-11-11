@@ -234,6 +234,16 @@ describe("node writes", () => {
     expect(result).toEqual(node);
   });
 
+  it("createNodes POSTs the batch to /api/mindmaps/{mapId}/nodes/batch", async () => {
+    mockNext(jsonResponse({ nodeIds: ["a", "b"] }, 201));
+    const body = { rootIds: ["a"], nodes: { a: { parentId: "r", children: ["b"] }, b: { parentId: "a" } } };
+    const result = await makeClient().createNodes("m1", body);
+    expect(captured[0].method).toBe("POST");
+    expect(captured[0].url).toBe("https://api.example.test/api/mindmaps/m1/nodes/batch");
+    expect(captured[0].body).toEqual(body);
+    expect(result).toEqual({ nodeIds: ["a", "b"] });
+  });
+
   it("updateNode PATCHes the node path with the body", async () => {
     mockNext(jsonResponse({ success: true }));
     const body = {

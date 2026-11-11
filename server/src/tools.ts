@@ -5,7 +5,7 @@ import { basename, extname, join } from "node:path";
 import { z } from "zod";
 import type { MindmapClient } from "./client.js";
 import { loadSpec, readOperations, type McpAnnotations } from "./openapi.js";
-import { FEEDBACK_KINDS, MAP_LAYOUTS, ZOOM_LEVELS } from "./types.js";
+import { FEEDBACK_KINDS, MAP_LAYOUTS, NODE_TYPES, ZOOM_LEVELS } from "./types.js";
 
 /**
  * A semantic MCP tool over a single API primitive. `inputSchema` is a Zod raw
@@ -99,6 +99,26 @@ const messages = z
   )
   .describe("Node content as a UIMessage array (e.g. one user turn with text parts).");
 
+/**
+ * A new node's content: user turns only. The API refuses any other role on
+ * create, since a node's answer comes from running it.
+ */
+const userTurns = z
+  .array(
+    z.object({
+      role: z.literal("user").describe("Always 'user' on a new node."),
+      parts: z
+        .array(
+          z.object({
+            type: z.literal("text").describe("The part type; use 'text'."),
+            text: z.string().describe("The text content of this part; markdown is fine."),
+          }),
+        )
+        .describe("Ordered content parts for this message."),
+    }),
+  )
+  .describe("Node content as a UIMessage array: one user turn with text parts.");
+
 /** The node card tints the app offers, as stable palette keys. */
 const NODE_COLORS = [
   "rose",
@@ -133,6 +153,31 @@ const color = z
       "or flagging scheme — so set one only when they ask or have described their scheme, and " +
       "leave the colors already on a map alone when you reorganize it.",
   );
+
+/** A node's type. The API refuses anything else, so the schema does too. */
+const nodeType = z
+  .enum(NODE_TYPES)
+  .describe("'prompt' is a question a model answers when submitted, 'data' holds content kept as written (the app calls it a note), 'expand' fans out into follow-up questions. Defaults to 'prompt'.");
+
+/**
+ * One node of a create_nodes batch, in the shape a map's `data.nodes` uses —
+ * camelCase, unlike the single-node writes, because it IS that shape.
+ */
+const newNode = z.object({
+  id: z.string().optional().describe("Optional; when sent, it equals the node's key in nodes."),
+  parentId: z
+    .string()
+    .describe("The id of a node already in the map, or of another node in this batch."),
+  children: z
+    .array(z.string())
+    .optional()
+    .describe("This node's children in order: exactly the batch nodes whose parentId is this node, each once."),
+  nodeType: nodeType.optional(),
+  messages: userTurns.optional(),
+  note: z.string().optional(),
+  color,
+  isCollapsed: z.boolean().optional().describe("Create the node with its children hidden."),
+});
 
 function wiring(): ToolWiring[] {
   return [
@@ -273,11 +318,10 @@ function wiring(): ToolWiring[] {
           .nullable()
           .optional()
           .describe("Insert index among the parent's children; appended when omitted."),
-        messages: messages
-          .optional()
-          .describe("Initial node content as a UIMessage array (a data/note node's body is a user message too)."),
+        messages: userTurns.optional(),
         note: z.string().optional().describe("Initial node note."),
-        nodeType: z.string().optional().describe("The node's type (e.g. prompt, data, expand)."),
+        nodeType: nodeType.optional(),
+        isCollapsed: z.boolean().optional().describe("Create the node with its children hidden."),
         color,
       },
       handler: (client, args) => {
@@ -285,6 +329,7 @@ function wiring(): ToolWiring[] {
           messages: args.messages,
           note: args.note,
           node_type: args.nodeType,
+          is_collapsed: args.isCollapsed,
           color: args.color,
         });
         const body = compact({
@@ -295,6 +340,22 @@ function wiring(): ToolWiring[] {
         });
         return client.createNode(args.mapId, body as any);
       },
+    },
+    {
+      name: "create_nodes",
+      operationId: "createNodes",
+      inputSchema: {
+        mapId,
+        rootIds: z
+          .array(z.string())
+          .min(1)
+          .describe("The new nodes whose parent already exists, in the order they are appended under it."),
+        nodes: z
+          .record(z.string(), newNode)
+          .describe("The new nodes keyed by client-minted id, 1 to 200 of them."),
+      },
+      handler: (client, args) =>
+        client.createNodes(args.mapId, { rootIds: args.rootIds, nodes: args.nodes }),
     },
     {
       name: "update_node",

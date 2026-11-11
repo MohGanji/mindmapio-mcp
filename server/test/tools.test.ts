@@ -25,6 +25,7 @@ function fakeClient(): MindmapClient {
     getNode: vi.fn().mockResolvedValue({ node: { id: "n1", children: [] }, children: [] }),
     getSubtree: vi.fn().mockResolvedValue({ node: { id: "n1", children: [] }, children: [] }),
     createNode: vi.fn().mockResolvedValue({ id: "n1", children: [] }),
+    createNodes: vi.fn().mockResolvedValue({ nodeIds: ["topic", "detail"] }),
     updateNode: vi.fn().mockResolvedValue({ success: true }),
     deleteNode: vi.fn().mockResolvedValue({ success: true }),
     submitNode: vi.fn().mockResolvedValue({ nodeId: "n1", status: "complete", messages: [] }),
@@ -54,6 +55,7 @@ describe("tool catalogue", () => {
         "auto_expand",
         "create_map",
         "create_node",
+        "create_nodes",
         "delete_map",
         "delete_node",
         "get_map",
@@ -308,6 +310,21 @@ describe("create_node wiring", () => {
   // mindmap.io#587: color is a node field the UI has had since node color coding
   // shipped, and the tool surface never did — so an agent asked to lay out a
   // color-coded branch had to leave every card white.
+  it("creates a node collapsed when asked", async () => {
+    const client = fakeClient();
+    await tool("create_node").handler(client, {
+      mapId: "m1",
+      nodeId: "x",
+      parentId: "r",
+      isCollapsed: true,
+    });
+    expect(client.createNode).toHaveBeenCalledWith("m1", {
+      nodeId: "x",
+      parentId: "r",
+      data: { is_collapsed: true },
+    });
+  });
+
   it("carries a color into data", async () => {
     const client = fakeClient();
     await tool("create_node").handler(client, {
@@ -320,6 +337,54 @@ describe("create_node wiring", () => {
       nodeId: "x",
       parentId: "r",
       data: { color: "sage" },
+    });
+  });
+});
+
+describe("create_nodes wiring", () => {
+  // The batch is the map's own `data.nodes` shape, so the tool passes it through
+  // untouched: there is no second spelling to translate, unlike create_node.
+  it("sends the batch to the map unchanged and returns the new ids", async () => {
+    const client = fakeClient();
+    const nodes = {
+      topic: {
+        parentId: "root",
+        nodeType: "data",
+        messages: [{ role: "user", parts: [{ type: "text", text: "Topic" }] }],
+        children: ["detail"],
+      },
+      detail: { parentId: "topic", nodeType: "data", isCollapsed: true },
+    };
+    const result = await tool("create_nodes").handler(client, { mapId: "m1", rootIds: ["topic"], nodes });
+    expect(client.createNodes).toHaveBeenCalledWith("m1", { rootIds: ["topic"], nodes });
+    expect(result).toEqual({ nodeIds: ["topic", "detail"] });
+  });
+
+  it("requires the order of the nodes hanging from the map as an array", () => {
+    const rootIds = tool("create_nodes").inputSchema.rootIds;
+    expect(rootIds.safeParse(["a", "b"]).success).toBe(true);
+    expect(rootIds.safeParse(undefined).success).toBe(false);
+  });
+
+  it("only offers user turns, since a new node's answer comes from running it", () => {
+    const nodes = tool("create_nodes").inputSchema.nodes;
+    const turn = (role: string) => ({ a: { parentId: "r", messages: [{ role, parts: [{ type: "text", text: "x" }] }] } });
+    expect(nodes.safeParse(turn("user")).success).toBe(true);
+    expect(nodes.safeParse(turn("assistant")).success).toBe(false);
+  });
+
+  it("refuses a node type the API does not take before sending anything", () => {
+    const nodes = tool("create_nodes").inputSchema.nodes;
+    expect(nodes.safeParse({ a: { parentId: "r", nodeType: "data" } }).success).toBe(true);
+    expect(nodes.safeParse({ a: { parentId: "r", nodeType: "note" } }).success).toBe(false);
+    expect(nodes.safeParse({ a: { nodeType: "data" } }).success).toBe(false);
+  });
+
+  it("is a write that destroys nothing", () => {
+    expect(tool("create_nodes").annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: false,
     });
   });
 });

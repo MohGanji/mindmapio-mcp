@@ -69,10 +69,15 @@ export interface CreateMapResponse {
   kind?: string;
 }
 
+/** The node types the API takes; it refuses any other with a 400. */
+export const NODE_TYPES = ["prompt", "data", "expand"] as const;
+export type NodeType = (typeof NODE_TYPES)[number];
+
 export interface CreateNodeData {
   messages?: Message[];
   note?: string;
-  node_type?: string;
+  node_type?: NodeType;
+  is_collapsed?: boolean;
 }
 
 export interface CreateNodeRequest {
@@ -80,6 +85,32 @@ export interface CreateNodeRequest {
   parentId: string;
   position?: number | null;
   data?: CreateNodeData;
+}
+
+/** One new node of a batch, in the shape a map's `data.nodes` uses. */
+export interface NewNode {
+  id?: string;
+  parentId: string;
+  children?: string[];
+  nodeType?: NodeType;
+  messages?: Message[];
+  note?: string;
+  color?: string | null;
+  isCollapsed?: boolean;
+}
+
+/**
+ * Up to 200 new nodes keyed by client-minted id, written atomically. `rootIds`
+ * orders the nodes whose parent already exists; object keys never carry order.
+ */
+export interface CreateNodesRequest {
+  rootIds: string[];
+  nodes: Record<string, NewNode>;
+}
+
+/** The new ids in write order, each parent before its children. */
+export interface CreateNodesResponse {
+  nodeIds: string[];
 }
 
 export interface UpdateNodeRequest {

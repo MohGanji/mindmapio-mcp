@@ -66,7 +66,7 @@ The first run builds from source, so it takes a few extra seconds. Later runs ar
 
 ### What your agent can do
 
-Nineteen tools, one per operation in the [Mindmap.io node API](https://mindmap.io/api/openapi.json).
+Twenty tools, one per operation in the [Mindmap.io node API](https://mindmap.io/api/openapi.json).
 
 | Tool | What it does |
 | --- | --- |
@@ -81,6 +81,7 @@ Nineteen tools, one per operation in the [Mindmap.io node API](https://mindmap.i
 | `set_map_layout` | Arrange a map as a tree, top-down, or with branches on both sides. |
 | `send_feedback` | Pass the user's bug report or idea to the mindmap.io team. |
 | `create_node` | Add a node under a parent. |
+| `create_nodes` | Add up to 200 nodes at once, whole branches included, in one all-or-nothing call. |
 | `update_node` | Edit a node's content, note, type, or model. |
 | `delete_node` | Remove a node and its children. |
 | `submit_node` | Run a node through the model and get the answer back. |
