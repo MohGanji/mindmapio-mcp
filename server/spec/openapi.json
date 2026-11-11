@@ -26,6 +26,10 @@
       "description": "Read individual nodes and subtrees."
     },
     {
+      "name": "search",
+      "description": "Find nodes across the user's maps by what they say."
+    },
+    {
       "name": "generation",
       "description": "Generative operations that invoke the LLM on a node."
     },
@@ -110,6 +114,79 @@
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/api/mindmaps/search": {
+      "get": {
+        "operationId": "searchNodes",
+        "tags": [
+          "search"
+        ],
+        "summary": "Search the user's maps for nodes",
+        "description": "Full-text search over every map owned by the token's user, or over one map when `mapId` is set. A node matches on its content (the text of every message, prompt and answer), its note, its three zoom summaries, the file names and image descriptions of its attachments, and, on a root node, the map's title. Matching ignores case and accents and accepts other forms of a word, so `plants` finds `plant`.\n\nEvery word of a query has to be in the same node: the node itself, not its map title or its ancestors. Queries of one to three distinctive words from the node itself match best, and `mapId` is how a search is kept to one map. When nothing comes back, fewer words, another form of a word, a prefix with `*`, or alternatives joined by `OR` widen it. In scripts written without spaces between words (Chinese, Japanese, Thai) a run of characters between spaces or punctuation is one word, so a trailing `*` matches the start of a run (`コーヒー*`).\n\nEach result is the address of a matching node rather than its content: the map id and title, the node id, the path from the root as short labels, the field that matched, and a snippet of that field. The node itself is read by its `mapId` and `nodeId`. Results come best match first, 20 by default and at most 50, and `truncated` is true when more nodes matched than were returned. A path deeper than eight steps keeps its root and its last six, with one entry between them whose `nodeId` is null.\n\nThe query is plain words, all required (`bread flour`); `AND` between them says the same. A quoted phrase matches those words in that order (`\"light reaction\"`, curly quotes included). `OR` between two terms matches either (`sourdough OR rye`). A leading `-` or a `NOT` before a term excludes it (`water -salt`, `water NOT salt`); a `-` before a digit is part of the word, so `-5` is a number to find. A trailing `*` matches any word starting with it (`photo*`). Only uppercase `AND`, `OR` and `NOT` are operators. Everything else, including parentheses and other punctuation, is read as text to look for. An empty `mapId` searches every map, and each parameter is sent once.\n\nFails with 400 when `q` is missing or cannot be read as a query (an unclosed quote, an `OR` without a term on each side, a `NOT` with no term after it, an excluded term inside an `OR`, only excluded terms, or more than 500 characters), when `limit` is not a whole number from 1 to 50, or when a parameter is sent more than once, with the reason in `error`; 401 without a valid token; 403 when `mapId` names another user's map; 404 when `mapId` names no map.\n",
+        "x-mcp": {
+          "title": "Search maps",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "description": "The search query, in the syntax above.",
+            "schema": {
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          {
+            "name": "mapId",
+            "in": "query",
+            "required": false,
+            "description": "Search only this map. Omitted or empty, every map the token's user owns is searched.\n",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "How many results to return, best match first: a whole number from 1 to 50, 20 when omitted.\n",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The matching nodes, best match first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       }
@@ -1397,6 +1474,90 @@
           },
           "updated_at": {
             "type": "string"
+          }
+        }
+      },
+      "SearchResults": {
+        "type": "object",
+        "required": [
+          "results",
+          "truncated"
+        ],
+        "properties": {
+          "results": {
+            "type": "array",
+            "description": "Best match first. Empty when nothing matches.",
+            "items": {
+              "$ref": "#/components/schemas/SearchResult"
+            }
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "True when more nodes matched than `limit` returned. A narrower query or `mapId` reaches the rest; there is no paging.\n"
+          }
+        }
+      },
+      "SearchResult": {
+        "type": "object",
+        "description": "Where one matching node is, and what in it matched.",
+        "required": [
+          "mapId",
+          "mapTitle",
+          "nodeId",
+          "path",
+          "field",
+          "snippet"
+        ],
+        "properties": {
+          "mapId": {
+            "type": "string"
+          },
+          "mapTitle": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "nodeId": {
+            "type": "string",
+            "description": "The node id, unprefixed, as node trees return it."
+          },
+          "path": {
+            "type": "array",
+            "description": "The node's ancestors and the node itself, root first, each with a short label: its phrase summary, else the start of its text, its attachments or its note, and for a root with none of those, the map's title. Deeper than eight steps, it keeps the root and the last six, with one entry between them whose `nodeId` is null and whose label is `…`.\n",
+            "items": {
+              "type": "object",
+              "required": [
+                "nodeId",
+                "label"
+              ],
+              "properties": {
+                "nodeId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "label": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "field": {
+            "type": "string",
+            "enum": [
+              "content",
+              "note",
+              "summary",
+              "attachment",
+              "mapTitle"
+            ],
+            "description": "Where the match is: the node's messages, its note, its zoom summaries, its attachments' file names and descriptions, or the map's title (root nodes only). When several match, the first in that order.\n"
+          },
+          "snippet": {
+            "type": "string",
+            "description": "The matched words with some of the text around them, from that field, at most 300 characters.\n"
           }
         }
       },

@@ -66,7 +66,7 @@ The first run builds from source, so it takes a few extra seconds. Later runs ar
 
 ### What your agent can do
 
-Nineteen tools, one per operation in the [Mindmap.io node API](https://mindmap.io/api/openapi.json).
+Twenty tools, one per operation in the [Mindmap.io node API](https://mindmap.io/api/openapi.json).
 
 | Tool | What it does |
 | --- | --- |
@@ -74,6 +74,7 @@ Nineteen tools, one per operation in the [Mindmap.io node API](https://mindmap.i
 | `get_map` | Read a whole map and its node tree. |
 | `get_node` | Read one node. |
 | `get_subtree` | Read a node and its children, as deep as you want. |
+| `search_nodes` | Search every map the user owns and get back where each match is. |
 | `create_map` | Start a new map. |
 | `delete_map` | Delete a map and everything in it. |
 | `publish_map` | Publish a map and get its shareable + embed links. |

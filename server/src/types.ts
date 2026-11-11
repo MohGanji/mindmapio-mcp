@@ -36,6 +36,31 @@ export interface MindMap {
   data?: MapData;
 }
 
+/** GET /api/mindmaps/search — the query and its optional narrowing. */
+export interface SearchNodesRequest {
+  q: string;
+  mapId?: string;
+  limit?: number;
+}
+
+/** Where one matching node is: an address to read with getNode or getSubtree. */
+export interface SearchResult {
+  mapId: string;
+  mapTitle: string | null;
+  nodeId: string;
+  /** Root first, each step with a short label. A deep path keeps its root and
+   *  last six, with one `{ nodeId: null, label: "…" }` between. */
+  path: { nodeId: string | null; label: string }[];
+  field: "content" | "note" | "summary" | "attachment" | "mapTitle";
+  snippet: string;
+}
+
+export interface SearchNodesResponse {
+  results: SearchResult[];
+  /** True when more nodes matched than `limit` returned. */
+  truncated: boolean;
+}
+
 export interface SubtreeNode {
   node: Node;
   children: SubtreeNode[];
