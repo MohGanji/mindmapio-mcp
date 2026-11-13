@@ -189,6 +189,17 @@ describe("feedback", () => {
   });
 });
 
+describe("renaming a map", () => {
+  it("renameMap PUTs the title to /api/mindmaps/{id}/title", async () => {
+    mockNext(jsonResponse({ title: "Trip plans" }));
+    const result = await makeClient().renameMap("m1", "Trip plans");
+    expect(captured[0].method).toBe("PUT");
+    expect(captured[0].url).toBe("https://api.example.test/api/mindmaps/m1/title");
+    expect(captured[0].body).toEqual({ title: "Trip plans" });
+    expect(result).toEqual({ title: "Trip plans" });
+  });
+});
+
 describe("public map urls", () => {
   it("builds viewer + embed links framed by node/zoom/cz (defaults)", () => {
     const urls = makeClient().publicMapUrls("pub123");

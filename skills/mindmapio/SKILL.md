@@ -352,6 +352,24 @@ mm /api/feedback -X POST -d '{"kind":"bug","message":"Export to PNG cuts off the
 
 > Via the MCP server, the same call is `send_feedback` with `{kind, message, mapId?}`.
 
+### Rename
+
+A map's title follows its root node's prompt until someone names it. Once
+renamed, the name stays when the root changes, and shows in the map list and
+the browser tab. `list_maps` marks a renamed map with `title_custom: true`.
+Owner-only; not metered.
+
+**Rename a map** — `PUT /api/mindmaps/{mapId}/title` with `{title}`, 1 to 100
+characters; surrounding whitespace is trimmed. → `{title}`. An empty or longer
+name is a `400`.
+
+```bash
+mm /api/mindmaps/MAP_ID/title -X PUT -d '{"title":"Japan trip, spring 2027"}'
+# → {"title":"Japan trip, spring 2027"}
+```
+
+> Via the MCP server, the same call is `rename_map` with `{mapId, title}`.
+
 ## Pattern: agent-drives-recursion for auto-expand
 
 Auto-expand does NOT recurse and does NOT run the children it creates — it only

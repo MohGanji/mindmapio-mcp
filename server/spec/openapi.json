@@ -333,6 +333,61 @@
         }
       }
     },
+    "/api/mindmaps/{id}/title": {
+      "put": {
+        "operationId": "renameMap",
+        "tags": [
+          "maps"
+        ],
+        "summary": "Rename a map",
+        "description": "Gives the map a name of up to 100 characters. Until a map is renamed its title follows the root node's prompt; once renamed, the name stays when the root changes. The name shows in the map list and the browser tab. Owner-only, and not metered.\n",
+        "x-mcp": {
+          "title": "Rename a map",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/MapId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MapTitleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The map's new name, trimmed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MapTitleRequest"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
     "/api/mindmaps/{mapId}/files": {
       "post": {
         "operationId": "uploadAttachment",
@@ -1182,7 +1237,8 @@
         "type": "object",
         "properties": {
           "title": {
-            "type": "string"
+            "type": "string",
+            "description": "A provisional title. The map's title follows its root node's prompt from the first save in the app; call renameMap to give it a name that stays.\n"
           },
           "kind": {
             "type": "string",
@@ -1389,6 +1445,10 @@
           "title": {
             "type": "string"
           },
+          "title_custom": {
+            "type": "boolean",
+            "description": "True once the map was renamed. Until then the title follows the root node's prompt.\n"
+          },
           "kind": {
             "type": "string"
           },
@@ -1520,6 +1580,20 @@
         "properties": {
           "layout": {
             "$ref": "#/components/schemas/MapLayout"
+          }
+        }
+      },
+      "MapTitleRequest": {
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "The map's name. Surrounding whitespace is trimmed."
           }
         }
       },

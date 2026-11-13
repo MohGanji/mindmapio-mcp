@@ -137,6 +137,14 @@ export interface MapLayoutResponse {
   layout: MapLayout;
 }
 
+/** PUT /api/mindmaps/:id/title — the map's new name, trimmed. */
+export interface RenameMapResponse {
+  title: string;
+}
+
+/** The longest name a map takes (the API's MapTitleRequest.title maxLength). */
+export const MAP_TITLE_MAX = 100;
+
 /** What a piece of feedback is: something broken, a feature request, or anything else. */
 export const FEEDBACK_KINDS = ["bug", "idea", "other"] as const;
 export type FeedbackKind = (typeof FEEDBACK_KINDS)[number];
