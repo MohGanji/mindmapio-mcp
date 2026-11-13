@@ -13,6 +13,7 @@ import {
   type FeedbackResponse,
   type MapLayout,
   type MapLayoutResponse,
+  type RenameMapResponse,
   type MindMap,
   type MindMapSummary,
   type Node,
@@ -115,6 +116,11 @@ export class MindmapClient {
   /** Pass the user's feedback to the mindmap.io team. A reply goes to their account email. */
   sendFeedback(body: FeedbackRequest): Promise<FeedbackResponse> {
     return this.#request<FeedbackResponse>("POST", "/api/feedback", body);
+  }
+
+  /** Name the map. Once renamed, the name stays when the root node changes. */
+  renameMap(id: string, title: string): Promise<RenameMapResponse> {
+    return this.#request<RenameMapResponse>("PUT", `${this.#mapPath(id)}/title`, { title });
   }
 
   /**

@@ -5,7 +5,7 @@ import { basename, extname, join } from "node:path";
 import { z } from "zod";
 import type { MindmapClient } from "./client.js";
 import { loadSpec, readOperations, type McpAnnotations } from "./openapi.js";
-import { FEEDBACK_KINDS, MAP_LAYOUTS, ZOOM_LEVELS } from "./types.js";
+import { FEEDBACK_KINDS, MAP_LAYOUTS, MAP_TITLE_MAX, ZOOM_LEVELS } from "./types.js";
 
 /**
  * A semantic MCP tool over a single API primitive. `inputSchema` is a Zod raw
@@ -254,6 +254,19 @@ function wiring(): ToolWiring[] {
           message: args.message,
           ...(args.mapId ? { context: { mapId: args.mapId } } : {}),
         }),
+    },
+    {
+      name: "rename_map",
+      operationId: "renameMap",
+      inputSchema: {
+        mapId,
+        title: z
+          .string()
+          .min(1)
+          .max(MAP_TITLE_MAX)
+          .describe(`The map's new name, up to ${MAP_TITLE_MAX} characters.`),
+      },
+      handler: (client, args) => client.renameMap(args.mapId, args.title),
     },
     {
       name: "create_node",

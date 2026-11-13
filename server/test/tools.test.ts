@@ -16,6 +16,7 @@ function fakeClient(): MindmapClient {
     publishMap: vi.fn().mockResolvedValue({ publicId: "pub123" }),
     unpublishMap: vi.fn().mockResolvedValue({ success: true }),
     setMapLayout: vi.fn().mockResolvedValue({ layout: "top-down" }),
+    renameMap: vi.fn().mockResolvedValue({ title: "Trip plans" }),
     sendFeedback: vi.fn().mockResolvedValue({ id: "f1" }),
     publicMapUrls: vi.fn().mockReturnValue({
       publicId: "pub123",
@@ -62,6 +63,7 @@ describe("tool catalogue", () => {
         "interrupt_node",
         "list_maps",
         "publish_map",
+        "rename_map",
         "retry_node",
         "submit_node",
         "read_attachment",
@@ -237,6 +239,21 @@ describe("map write wiring", () => {
     const layout = tool("set_map_layout").inputSchema.layout;
     expect(layout.safeParse("both-sides").success).toBe(true);
     expect(layout.safeParse("radial").success).toBe(false);
+  });
+});
+
+describe("rename_map wiring", () => {
+  it("passes the map id and the new name", async () => {
+    const client = fakeClient();
+    await tool("rename_map").handler(client, { mapId: "m1", title: "Trip plans" });
+    expect(client.renameMap).toHaveBeenCalledWith("m1", "Trip plans");
+  });
+
+  it("takes a name of up to 100 characters", () => {
+    const title = tool("rename_map").inputSchema.title;
+    expect(title.safeParse("a".repeat(100)).success).toBe(true);
+    expect(title.safeParse("a".repeat(101)).success).toBe(false);
+    expect(title.safeParse("").success).toBe(false);
   });
 });
 
