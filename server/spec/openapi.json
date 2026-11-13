@@ -1237,7 +1237,8 @@
         "type": "object",
         "properties": {
           "title": {
-            "type": "string"
+            "type": "string",
+            "description": "A provisional title. The map's title follows its root node's prompt from the first save in the app; call renameMap to give it a name that stays.\n"
           },
           "kind": {
             "type": "string",
