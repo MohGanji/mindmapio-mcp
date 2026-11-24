@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -186,8 +187,15 @@ describe("map write wiring", () => {
     });
   });
 
-  it("create_map takes no title: the map is titled after its root", () => {
-    expect(Object.keys(tool("create_map").inputSchema)).not.toContain("title");
+  it("create_map refuses the old title and data arguments by name, instead of making a blank map", () => {
+    const schema = z.object(tool("create_map").inputSchema);
+    const title = schema.safeParse({ title: "Hello" });
+    const data = schema.safeParse({ data: { rootId: "r", nodes: {} } });
+    expect(title.success).toBe(false);
+    expect(JSON.stringify(title.error?.issues)).toMatch(/rename_map/);
+    expect(data.success).toBe(false);
+    expect(JSON.stringify(data.error?.issues)).toMatch(/import_map/);
+    expect(schema.safeParse({ nodeType: "data" }).success).toBe(true);
   });
 
   it("import_map passes the whole tree", async () => {
