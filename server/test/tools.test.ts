@@ -12,6 +12,7 @@ function fakeClient(): MindmapClient {
     listMaps: vi.fn().mockResolvedValue([{ id: "m1" }]),
     getMap: vi.fn().mockResolvedValue({ id: "m1" }),
     createMap: vi.fn().mockResolvedValue({ id: "m9" }),
+    importMap: vi.fn().mockResolvedValue({ id: "m9" }),
     deleteMap: vi.fn().mockResolvedValue({ success: true }),
     publishMap: vi.fn().mockResolvedValue({ publicId: "pub123" }),
     unpublishMap: vi.fn().mockResolvedValue({ success: true }),
@@ -60,6 +61,7 @@ describe("tool catalogue", () => {
         "get_map",
         "get_node",
         "get_subtree",
+        "import_map",
         "interrupt_node",
         "list_maps",
         "publish_map",
@@ -174,18 +176,25 @@ describe("read tool wiring", () => {
 });
 
 describe("map write wiring", () => {
-  it("create_map maps title/kind/data into the request", async () => {
+  it("create_map sends the root node, nested under data as the API takes it", async () => {
     const client = fakeClient();
-    await tool("create_map").handler(client, {
-      title: "New",
-      kind: "mindmap",
-      data: { rootId: "r", nodes: {} },
-    });
+    const messages = [{ role: "user", parts: [{ type: "text", text: "Spanish rivers" }] }];
+    await tool("create_map").handler(client, { kind: "mindmap", nodeType: "data", messages, color: "sky" });
     expect(client.createMap).toHaveBeenCalledWith({
-      title: "New",
       kind: "mindmap",
-      data: { rootId: "r", nodes: {} },
+      data: { messages, node_type: "data", color: "sky" },
     });
+  });
+
+  it("create_map takes no title: the map is titled after its root", () => {
+    expect(Object.keys(tool("create_map").inputSchema)).not.toContain("title");
+  });
+
+  it("import_map passes the whole tree", async () => {
+    const client = fakeClient();
+    const data = { rootId: "r", nodes: { r: { id: "r", parentId: null, children: [] } } };
+    await tool("import_map").handler(client, { data });
+    expect(client.importMap).toHaveBeenCalledWith({ data });
   });
 
   it("delete_map passes the map id", async () => {

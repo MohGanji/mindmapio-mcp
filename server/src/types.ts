@@ -57,10 +57,18 @@ export interface Message {
   parts: MessagePart[];
 }
 
+/** A map's root node, in the shape createNode takes without a parent. There
+ *  is no title: the map is titled after its root. */
 export interface CreateMapRequest {
-  title?: string;
+  nodeId?: string;
   kind?: string;
-  data?: MapData;
+  data?: CreateNodeData;
+}
+
+/** A whole tree; the map is titled after its root. */
+export interface ImportMapRequest {
+  kind?: string;
+  data: MapData;
 }
 
 export interface CreateMapResponse {
@@ -73,6 +81,7 @@ export interface CreateNodeData {
   messages?: Message[];
   note?: string;
   node_type?: string;
+  color?: string | null;
 }
 
 export interface CreateNodeRequest {

@@ -173,20 +173,42 @@ function wiring(): ToolWiring[] {
       name: "create_map",
       operationId: "createMap",
       inputSchema: {
-        title: z.string().optional().describe("The map title."),
+        nodeId: z.string().optional().describe("The root's id (defaults to root)."),
+        kind: z.string().optional().describe("The map kind (defaults to mindmap)."),
+        messages: messages
+          .optional()
+          .describe("The root's content as a UIMessage array. The map's title follows it."),
+        note: z.string().optional().describe("The root's note."),
+        nodeType: z.string().optional().describe("The root's type (e.g. data, prompt, expand)."),
+        color,
+      },
+      handler: (client, args) => {
+        const data = compact({
+          messages: args.messages,
+          note: args.note,
+          node_type: args.nodeType,
+          color: args.color,
+        });
+        return client.createMap(
+          compact({ nodeId: args.nodeId, kind: args.kind, data: Object.keys(data).length > 0 ? data : undefined }),
+        );
+      },
+    },
+    {
+      name: "import_map",
+      operationId: "importMap",
+      inputSchema: {
         kind: z.string().optional().describe("The map kind (defaults to mindmap)."),
         data: z
           .object({
-            rootId: z.string().nullable().optional(),
+            rootId: z.string(),
             selectedId: z.string().nullable().optional(),
-            nodes: z.record(z.string(), z.any()).optional(),
+            nodes: z.record(z.string(), z.any()),
           })
           .passthrough()
-          .optional()
-          .describe("The initial node tree, with a root node."),
+          .describe("The whole tree, {rootId, nodes}, in the shape get_map returns. The map's title follows its root."),
       },
-      handler: (client, args) =>
-        client.createMap(compact({ title: args.title, kind: args.kind, data: args.data })),
+      handler: (client, args) => client.importMap(compact({ kind: args.kind, data: args.data }) as any),
     },
     {
       name: "delete_map",

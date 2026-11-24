@@ -133,15 +133,25 @@ describe("read endpoints", () => {
 });
 
 describe("map writes", () => {
-  it("createMap POSTs /api/mindmaps with the body", async () => {
+  it("createMap POSTs /api/mindmaps with the root node", async () => {
     mockNext(jsonResponse({ id: "m9" }, 201));
-    const body = { title: "New", data: { rootId: "r", nodes: {} } };
+    const body = { data: { node_type: "data", messages: [{ role: "user" as const, parts: [{ type: "text" as const, text: "Topic" }] }] } };
     const result = await makeClient().createMap(body);
     expect(captured[0].method).toBe("POST");
     expect(captured[0].url).toBe("https://api.example.test/api/mindmaps");
     expect(captured[0].headers["content-type"]).toBe("application/json");
     expect(captured[0].body).toEqual(body);
     expect(result).toEqual({ id: "m9" });
+  });
+
+  it("importMap POSTs /api/mindmaps/import with the tree", async () => {
+    mockNext(jsonResponse({ id: "m9", title: "Topic" }, 201));
+    const body = { data: { rootId: "r", nodes: { r: { id: "r", parentId: null, children: [] } } } };
+    const result = await makeClient().importMap(body as any);
+    expect(captured[0].method).toBe("POST");
+    expect(captured[0].url).toBe("https://api.example.test/api/mindmaps/import");
+    expect(captured[0].body).toEqual(body);
+    expect(result).toEqual({ id: "m9", title: "Topic" });
   });
 
   it("deleteMap DELETEs /api/mindmaps/{id}", async () => {
