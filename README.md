@@ -74,7 +74,8 @@ Twenty tools, one per operation in the [Mindmap.io node API](https://mindmap.io/
 | `get_map` | Read a whole map and its node tree. |
 | `get_node` | Read one node. |
 | `get_subtree` | Read a node and its children, as deep as you want. |
-| `create_map` | Start a new map. |
+| `create_map` | Start a new map from its root node; the map is named after it. |
+| `import_map` | Create a whole map from a node tree in one call. |
 | `delete_map` | Delete a map and everything in it. |
 | `publish_map` | Publish a map and get its shareable + embed links. |
 | `unpublish_map` | Make a published map private again. |
@@ -119,12 +120,10 @@ export MINDMAP_API_TOKEN="<your personal access token>"
 Create a map, add a question, run it, and read the answer. Node content is sent as `messages`, a UIMessage array (`{ role, parts: [{ type: "text", text }] }`). With the MCP server, call the tools in order:
 
 ```jsonc
-// 1. Create a map with a root node.
-create_map   { "title": "Hello", "data": { "rootId": "root", "nodes": { "root": {
-               "id": "root",
-               "messages": [{ "role": "user", "parts": [{ "type": "text", "text": "Hello" }] }],
-               "children": [] } } } }
-//   -> { "id": "MAP_ID" }
+// 1. Create a map from its root node. The map is named after it.
+create_map   { "nodeType": "data",
+               "messages": [{ "role": "user", "parts": [{ "type": "text", "text": "Hello" }] }] }
+//   -> { "id": "MAP_ID", "title": "Hello" }
 
 // 2. Add a question under the root.
 create_node  { "mapId": "MAP_ID", "nodeId": "q1", "parentId": "root", "nodeType": "prompt",

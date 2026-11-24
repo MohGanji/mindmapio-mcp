@@ -88,22 +88,30 @@ mm "/api/mindmaps/MAP_ID/nodes/NODE_ID/subtree?depth=2"
 
 ### Structural write
 
-**Create a map** — `POST /api/mindmaps` with `{title?, kind?, data?}`. Pass an initial `data` tree with a root node so later node primitives have a parent to hang from. → `201 {id, title?, kind?}`.
+**Create a map** — `POST /api/mindmaps` with the map's root node, in the shape **Create a node** takes without a parent: `{nodeId?, kind?, data?}`, where `data` carries `{messages, note, node_type, color}` and `nodeId` defaults to `root`. The map is titled after its root. → `201 {id, title, kind}`.
 
-Each node has a type. A `data` node holds content you keep — a topic, reference text, a note. A `prompt` node is a question you run against a model with `submit`. The root usually holds the map's subject, so make it a `data` node:
+Each node has a type. A `data` node holds content you keep — a topic, reference text, a note. A `prompt` node is a question you run against a model with `submit`. A root holding the map's subject is a `data` node:
 
 ```bash
 mm /api/mindmaps -X POST -d '{
-  "title": "My research map",
+  "data": {
+    "node_type": "data",
+    "messages": [{ "role": "user", "parts": [{ "type": "text", "text": "Topic" }] }]
+  }
+}'
+```
+
+**Import a map** — `POST /api/mindmaps/import` with `{kind?, data}`, where `data` is a whole tree `{rootId, nodes}` in the shape **Read a full map** returns, to build a map in one call. The map is titled after the tree's root. → `201 {id, title, kind}`.
+
+```bash
+mm /api/mindmaps/import -X POST -d '{
   "data": {
     "rootId": "root",
     "nodes": {
-      "root": {
-        "id": "root",
-        "nodeType": "data",
-        "messages": [{ "role": "user", "parts": [{ "type": "text", "text": "Topic" }] }],
-        "children": []
-      }
+      "root": { "id": "root", "parentId": null, "children": ["a"], "nodeType": "data",
+                "messages": [{ "role": "user", "parts": [{ "type": "text", "text": "Topic" }] }] },
+      "a":    { "id": "a", "parentId": "root", "children": [], "nodeType": "data",
+                "messages": [{ "role": "user", "parts": [{ "type": "text", "text": "A branch" }] }] }
     }
   }
 }'
@@ -135,7 +143,7 @@ mm /api/mindmaps/MAP_ID/nodes -X POST -d '{
 }'
 ```
 
-**Update a node** — `PATCH /api/mindmaps/{mapId}/nodes/{nodeId}` with any subset of `{messages, note, node_type, is_collapsed, model_provider, model_id, color, position}`. Send `messages` to replace the node's content. Send `position` to move the node among its siblings: it is the 0-based destination index (not a step), the siblings in between shift by one, and the parent never changes, so a retry lands in the same place. A position outside the siblings, or on the root, is a `400`. Pure tree mutation, no LLM call, no metering. → `200 {success}`.
+**Update a node** — `PATCH /api/mindmaps/{mapId}/nodes/{nodeId}` with any subset of `{messages, note, node_type, is_collapsed, model_provider, model_id, color, position}`. Send `messages` to replace the node's content. Send `position` to move the node among its siblings: it is the 0-based destination index (not a step), the siblings in between shift by one, and the parent never changes, so a retry lands in the same place. A position outside the siblings is a `400`; the root stays at `0`, so `position: 0` on the root changes nothing. Pure tree mutation, no LLM call, no metering. → `200 {success}`.
 
 ```bash
 mm /api/mindmaps/MAP_ID/nodes/q1 -X PATCH -d '{
@@ -409,7 +417,7 @@ CTA rather than retrying blindly. Uploads add two of their own: `413` over the
 
 ```bash
 # create a map whose root is a data node holding the topic
-MAP=$(mm /api/mindmaps -X POST -d '{"title":"Hello","data":{"rootId":"root","nodes":{"root":{"id":"root","nodeType":"data","messages":[{"role":"user","parts":[{"type":"text","text":"Hello"}]}],"children":[]}}}}' | jq -r '.id')
+MAP=$(mm /api/mindmaps -X POST -d '{"data":{"node_type":"data","messages":[{"role":"user","parts":[{"type":"text","text":"Hello"}]}]}}' | jq -r '.id')
 # add a prompt node under the root, then run it
 mm /api/mindmaps/$MAP/nodes -X POST -d '{"nodeId":"q1","parentId":"root","data":{"messages":[{"role":"user","parts":[{"type":"text","text":"Say hi in one word."}]}],"node_type":"prompt"}}'
 # run it and read the answer back

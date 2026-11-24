@@ -134,6 +134,21 @@ const color = z
       "leave the colors already on a map alone when you reorganize it.",
   );
 
+const CREATE_MAP_TITLE_REFUSAL =
+  "create_map takes no title: the map is named after its root node. Send the root's content (messages, nodeType), and call rename_map for a name that stays.";
+const CREATE_MAP_DATA_REFUSAL =
+  "create_map takes the root node as flat fields (messages, note, nodeType, color). To create a whole tree in one call, use import_map.";
+
+/** An argument a tool no longer takes: accepted only when absent, and refused
+ *  with `reason` (which its description also says) when sent. */
+function refused(reason: string) {
+  return z
+    .unknown()
+    .optional()
+    .refine((value) => value === undefined, { message: reason })
+    .describe(`Not accepted. ${reason}`);
+}
+
 function wiring(): ToolWiring[] {
   return [
     {
@@ -173,20 +188,48 @@ function wiring(): ToolWiring[] {
       name: "create_map",
       operationId: "createMap",
       inputSchema: {
-        title: z.string().optional().describe("The map title."),
+        nodeId: z.string().optional().describe("The root's id (defaults to root)."),
+        kind: z.string().optional().describe("The map kind (defaults to mindmap)."),
+        messages: messages
+          .optional()
+          .describe("The root's content as a UIMessage array. The map's title follows it."),
+        note: z.string().optional().describe("The root's note."),
+        nodeType: z.string().optional().describe("The root's type (e.g. data, prompt, expand)."),
+        color,
+        // The two arguments create_map took before ADR 0042. The SDK strips
+        // unknown arguments, so without these an old call would quietly make a
+        // blank map; declared, they are refused by name, as mindmap.io's own
+        // hosted tool refuses them.
+        title: refused(CREATE_MAP_TITLE_REFUSAL),
+        data: refused(CREATE_MAP_DATA_REFUSAL),
+      },
+      handler: (client, args) => {
+        const data = compact({
+          messages: args.messages,
+          note: args.note,
+          node_type: args.nodeType,
+          color: args.color,
+        });
+        return client.createMap(
+          compact({ nodeId: args.nodeId, kind: args.kind, data: Object.keys(data).length > 0 ? data : undefined }),
+        );
+      },
+    },
+    {
+      name: "import_map",
+      operationId: "importMap",
+      inputSchema: {
         kind: z.string().optional().describe("The map kind (defaults to mindmap)."),
         data: z
           .object({
-            rootId: z.string().nullable().optional(),
+            rootId: z.string(),
             selectedId: z.string().nullable().optional(),
-            nodes: z.record(z.string(), z.any()).optional(),
+            nodes: z.record(z.string(), z.any()),
           })
           .passthrough()
-          .optional()
-          .describe("The initial node tree, with a root node."),
+          .describe("The whole tree, {rootId, nodes}, in the shape get_map returns. The map's title follows its root."),
       },
-      handler: (client, args) =>
-        client.createMap(compact({ title: args.title, kind: args.kind, data: args.data })),
+      handler: (client, args) => client.importMap(compact({ kind: args.kind, data: args.data }) as any),
     },
     {
       name: "delete_map",

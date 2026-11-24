@@ -7,6 +7,7 @@ import {
   type AutoExpandRequest,
   type AutoExpandResponse,
   type CreateMapRequest,
+  type ImportMapRequest,
   type CreateMapResponse,
   type CreateNodeRequest,
   type FeedbackRequest,
@@ -88,8 +89,14 @@ export class MindmapClient {
     return this.#request<MindMap>("GET", `/api/mindmaps/${encodeURIComponent(id)}`);
   }
 
+  /** Create a map from its root node; the server titles it after the root. */
   createMap(body: CreateMapRequest): Promise<CreateMapResponse> {
     return this.#request<CreateMapResponse>("POST", "/api/mindmaps", body);
+  }
+
+  /** Create a whole map from a tree in one call; titled after the tree's root. */
+  importMap(body: ImportMapRequest): Promise<CreateMapResponse> {
+    return this.#request<CreateMapResponse>("POST", "/api/mindmaps/import", body);
   }
 
   deleteMap(id: string): Promise<SuccessResponse> {

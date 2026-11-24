@@ -73,8 +73,8 @@
         "tags": [
           "maps"
         ],
-        "summary": "Create a map",
-        "description": "Creates a map owned by the token's user. Pass an initial node tree in `data` (with a root node) so structural node primitives have a parent to hang from. Returns the new map's id.\n",
+        "summary": "Create a map from its root node",
+        "description": "Creates a map owned by the token's user from its root node, the way createNode creates a node, without a parent: the same `data` fields and defaults (a `prompt` draft unless `node_type` says otherwise), and nothing is run. The map's title follows its root, as it does in the app; call renameMap to give it a name that stays. Build the rest of the map with createNode, or create a whole map in one call with importMap. Returns the new map's id and title.\n",
         "x-mcp": {
           "title": "Create a map",
           "readOnlyHint": false,
@@ -87,6 +87,53 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateMapRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created map.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateMapResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/api/mindmaps/import": {
+      "post": {
+        "operationId": "importMap",
+        "tags": [
+          "maps"
+        ],
+        "summary": "Create a whole map from a tree",
+        "description": "Creates a map owned by the token's user from a whole node tree in one call, in the map's own JSON format (`{rootId, nodes}`, the shape getMindmap returns in `data`). The map's title follows the tree's root; call renameMap to give it a name that stays. Nothing is run. Returns the new map's id and title.\n",
+        "x-mcp": {
+          "title": "Import a map",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportMapRequest"
               }
             }
           }
@@ -1235,11 +1282,25 @@
       },
       "CreateMapRequest": {
         "type": "object",
+        "description": "The map's root node, in the shape createNode takes, without a parent or position. There is no title: it follows the root.\n",
         "properties": {
-          "title": {
+          "nodeId": {
             "type": "string",
-            "description": "A provisional title. The map's title follows its root node's prompt from the first save in the app; call renameMap to give it a name that stays.\n"
+            "description": "The root's id (defaults to `root`)."
           },
+          "kind": {
+            "type": "string",
+            "description": "The map kind (defaults to mindmap)."
+          },
+          "data": {
+            "$ref": "#/components/schemas/NodeContent"
+          }
+        }
+      },
+      "ImportMapRequest": {
+        "type": "object",
+        "description": "A whole tree. There is no title: it follows the tree's root.\n",
+        "properties": {
           "kind": {
             "type": "string",
             "description": "The map kind (defaults to mindmap)."
@@ -1247,7 +1308,10 @@
           "data": {
             "$ref": "#/components/schemas/MapData"
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "CreateMapResponse": {
         "type": "object",
@@ -1265,6 +1329,34 @@
         "required": [
           "id"
         ]
+      },
+      "NodeContent": {
+        "type": "object",
+        "description": "A node's initial fields.",
+        "properties": {
+          "messages": {
+            "type": "array",
+            "description": "Node content as the canonical messages array (UIMessage shape: role + parts[].text). It is the node's source of truth; the deprecated `text` field is converted into it.\n",
+            "items": {
+              "type": "object"
+            }
+          },
+          "note": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string",
+            "deprecated": true,
+            "description": "Legacy content field. Still accepted (the server derives the messages user turn from it) but deprecated in favor of `messages`.\n"
+          },
+          "node_type": {
+            "type": "string",
+            "description": "The node's type (e.g. prompt, data, expand)."
+          },
+          "color": {
+            "$ref": "#/components/schemas/NodeColorWrite"
+          }
+        }
       },
       "CreateNodeRequest": {
         "type": "object",
@@ -1285,32 +1377,7 @@
             "description": "Insert index among the parent's children; appended when omitted."
           },
           "data": {
-            "type": "object",
-            "description": "Initial node fields.",
-            "properties": {
-              "messages": {
-                "type": "array",
-                "description": "Node content as the canonical messages array (UIMessage shape: role + parts[].text). It is the node's source of truth; the deprecated `text` field is converted into it.\n",
-                "items": {
-                  "type": "object"
-                }
-              },
-              "note": {
-                "type": "string"
-              },
-              "text": {
-                "type": "string",
-                "deprecated": true,
-                "description": "Legacy content field. Still accepted (the server derives the messages user turn from it) but deprecated in favor of `messages`.\n"
-              },
-              "node_type": {
-                "type": "string",
-                "description": "The node's type (e.g. prompt, data, expand)."
-              },
-              "color": {
-                "$ref": "#/components/schemas/NodeColorWrite"
-              }
-            }
+            "$ref": "#/components/schemas/NodeContent"
           }
         },
         "required": [
@@ -1356,7 +1423,7 @@
           "position": {
             "type": "integer",
             "minimum": 0,
-            "description": "Move the node to this 0-based index among its siblings. Send the destination, not a step: the siblings between the old and new spot shift by one, and retrying the same request leaves the order as it is. The parent never changes. Must be less than the number of siblings; the root cannot move.\n"
+            "description": "Move the node to this 0-based index among its siblings. Send the destination, not a step: the siblings between the old and new spot shift by one, and retrying the same request leaves the order as it is. The parent never changes. Must be less than the number of siblings. The root cannot move; `0`, where it already is, changes nothing, so the rest of the update still applies.\n"
           }
         }
       },

@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -12,6 +13,7 @@ function fakeClient(): MindmapClient {
     listMaps: vi.fn().mockResolvedValue([{ id: "m1" }]),
     getMap: vi.fn().mockResolvedValue({ id: "m1" }),
     createMap: vi.fn().mockResolvedValue({ id: "m9" }),
+    importMap: vi.fn().mockResolvedValue({ id: "m9" }),
     deleteMap: vi.fn().mockResolvedValue({ success: true }),
     publishMap: vi.fn().mockResolvedValue({ publicId: "pub123" }),
     unpublishMap: vi.fn().mockResolvedValue({ success: true }),
@@ -60,6 +62,7 @@ describe("tool catalogue", () => {
         "get_map",
         "get_node",
         "get_subtree",
+        "import_map",
         "interrupt_node",
         "list_maps",
         "publish_map",
@@ -174,18 +177,32 @@ describe("read tool wiring", () => {
 });
 
 describe("map write wiring", () => {
-  it("create_map maps title/kind/data into the request", async () => {
+  it("create_map sends the root node, nested under data as the API takes it", async () => {
     const client = fakeClient();
-    await tool("create_map").handler(client, {
-      title: "New",
-      kind: "mindmap",
-      data: { rootId: "r", nodes: {} },
-    });
+    const messages = [{ role: "user", parts: [{ type: "text", text: "Spanish rivers" }] }];
+    await tool("create_map").handler(client, { kind: "mindmap", nodeType: "data", messages, color: "sky" });
     expect(client.createMap).toHaveBeenCalledWith({
-      title: "New",
       kind: "mindmap",
-      data: { rootId: "r", nodes: {} },
+      data: { messages, node_type: "data", color: "sky" },
     });
+  });
+
+  it("create_map refuses the old title and data arguments by name, instead of making a blank map", () => {
+    const schema = z.object(tool("create_map").inputSchema);
+    const title = schema.safeParse({ title: "Hello" });
+    const data = schema.safeParse({ data: { rootId: "r", nodes: {} } });
+    expect(title.success).toBe(false);
+    expect(JSON.stringify(title.error?.issues)).toMatch(/rename_map/);
+    expect(data.success).toBe(false);
+    expect(JSON.stringify(data.error?.issues)).toMatch(/import_map/);
+    expect(schema.safeParse({ nodeType: "data" }).success).toBe(true);
+  });
+
+  it("import_map passes the whole tree", async () => {
+    const client = fakeClient();
+    const data = { rootId: "r", nodes: { r: { id: "r", parentId: null, children: [] } } };
+    await tool("import_map").handler(client, { data });
+    expect(client.importMap).toHaveBeenCalledWith({ data });
   });
 
   it("delete_map passes the map id", async () => {
