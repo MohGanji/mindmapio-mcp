@@ -121,7 +121,7 @@
           "maps"
         ],
         "summary": "Create a whole map from a tree",
-        "description": "Creates a map owned by the token's user from a whole node tree in one call, in the map's own JSON format (`{rootId, nodes}`, the shape getMindmap returns in `data`). The map's title follows the tree's root; call renameMap to give it a name that stays. Nothing is run. Returns the new map's id and title.\n",
+        "description": "Creates a map owned by the token's user from a whole node tree in one call, in the map's own JSON format (`{rootId, nodes}`, the shape getMindmap returns in `data`). The map's title follows the tree's root; call renameMap to give it a name that stays. Nothing is run. The caller mints the node ids, so one tree can carry its tag links too: a node's text links another node of the same tree as `[@Label](#node-<id>)` (see NodeContent). Returns the new map's id and title.\n",
         "x-mcp": {
           "title": "Import a map",
           "readOnlyHint": false,
@@ -1336,7 +1336,7 @@
         "properties": {
           "messages": {
             "type": "array",
-            "description": "Node content as the canonical messages array (UIMessage shape: role + parts[].text). It is the node's source of truth; the deprecated `text` field is converted into it.\n",
+            "description": "Node content as the canonical messages array (UIMessage shape: role + parts[].text). It is the node's source of truth; the deprecated `text` field is converted into it.\n\nA node tags another node in the same map, meaning \"this builds on that\", by linking to it in its user text: `[@Label](#node-<id>)`, where `<id>` is the other node's id and `Label` is what the reader sees (usually that node's title). The node holding the link is the destination and the linked node the source. A tag is an edge of its own, apart from the tree: the app draws it as a dashed line, reads report it in `tags` and `taggedBy`, and a prompt run on or under the destination gets the source's content in its context. It names the id, so renaming the source keeps it. A bare `@Name` without the link is plain text.\n",
             "items": {
               "type": "object"
             }
@@ -1765,6 +1765,22 @@
           },
           "color": {
             "$ref": "#/components/schemas/NodeColorRead"
+          },
+          "tags": {
+            "type": "array",
+            "readOnly": true,
+            "description": "The nodes this node tags: the ids its own text links with `[@Label](#node-<id>)` (see NodeContent), in order of first mention, keeping only ids of other nodes in this map. Read from the text on every read, so it cannot be written directly; edit the text to change it. Absent when the node tags nothing.\n",
+            "items": {
+              "type": "string"
+            }
+          },
+          "taggedBy": {
+            "type": "array",
+            "readOnly": true,
+            "description": "The nodes that tag this node (\"used by\"), the reverse of `tags`. Absent when no node tags it.\n",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [

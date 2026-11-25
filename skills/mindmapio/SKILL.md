@@ -190,6 +190,31 @@ own. When you reorganize or rebuild part of a map, carry each node's existing
 color across — dropping it silently deletes the only thing the field was
 holding.
 
+### Tag links
+
+A node can say it builds on another node anywhere in the same map, across
+branches. Write a link to that node's id in the node's own text:
+`[@Label](#node-<id>)`, with the other node's title as the label. The node
+holding the link is the destination and the linked node the source ("this
+builds on that"). A tag is an edge of its own: the tree stays as it is.
+
+```bash
+mm /api/mindmaps/MAP_ID/nodes/m8 -X PATCH -d '{
+  "messages": [{ "role": "user", "parts": [{ "type": "text",
+    "text": "# Shannon 1948\nEntropy as surprise, shaped like [@Boltzmann](#node-m6)." }] }]
+}'
+```
+
+- The app draws each tag as a dashed line from source to destination, and the
+  text shows the link as an @mention.
+- A prompt run on or under the destination gets the source's content in its
+  context, so a question in one branch can use a node from another.
+- Reads report each node's `tags` (the sources it links) and `taggedBy` (the
+  nodes that link it), worked out from the text; edit the text to change them.
+- The link names the id, so renaming the source keeps the tag. A plain `@Name`
+  with no link stays plain text.
+- In `import`, you mint every node id, so one tree can carry all of its tags.
+
 ### Attachments
 
 A node can carry images and PDFs alongside its text. It is two steps: send the
