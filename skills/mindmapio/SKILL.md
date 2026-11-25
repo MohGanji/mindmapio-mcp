@@ -88,9 +88,15 @@ mm "/api/mindmaps/MAP_ID/nodes/NODE_ID/subtree?depth=2"
 
 ### Structural write
 
-**Create a map** — `POST /api/mindmaps` with the map's root node, in the shape **Create a node** takes without a parent: `{nodeId?, kind?, data?}`, where `data` carries `{messages, note, node_type, color}` and `nodeId` defaults to `root`. The map is titled after its root. → `201 {id, title, kind}`.
+**Create a map** — `POST /api/mindmaps` with the map's root node, in the shape **Create a node** takes without a parent: `{nodeId?, kind?, data}`, where `data` carries `{node_type, messages?, note?, color?}` and `nodeId` defaults to `root`. The map is titled after its root. → `201 {id, title, kind}`.
 
-Each node has a type. A `data` node holds content you keep — a topic, reference text, a note. A `prompt` node is a question you run against a model with `submit`. A root holding the map's subject is a `data` node:
+Every node you create names its type in `node_type`, and a create without one is a `400` that lists the types. Pick the one that matches what the node holds:
+
+- `data` holds content you keep as written: a topic, a fact, reference text, a summary, a note. Most nodes an agent writes are `data`.
+- `prompt` is a question for a model. It stays a draft until you run it with `submit`, which writes the answer under it.
+- `expand` is a seed that `auto-expand` fans out into child prompts.
+
+A root holding the map's subject is a `data` node:
 
 ```bash
 mm /api/mindmaps -X POST -d '{
@@ -101,7 +107,7 @@ mm /api/mindmaps -X POST -d '{
 }'
 ```
 
-**Import a map** — `POST /api/mindmaps/import` with `{kind?, data}`, where `data` is a whole tree `{rootId, nodes}` in the shape **Read a full map** returns, to build a map in one call. The map is titled after the tree's root. → `201 {id, title, kind}`.
+**Import a map** — `POST /api/mindmaps/import` with `{kind?, data}`, where `data` is a whole tree `{rootId, nodes}` in the shape **Read a full map** returns, to build a map in one call. Give every node its `nodeType`, as above; the response to a tree with a node that leaves it out is a `400` naming that node, and nothing is created. The map is titled after the tree's root. → `201 {id, title, kind}`.
 
 ```bash
 mm /api/mindmaps/import -X POST -d '{
@@ -117,7 +123,7 @@ mm /api/mindmaps/import -X POST -d '{
 }'
 ```
 
-**Create a node** — `POST /api/mindmaps/{mapId}/nodes` with `{nodeId, parentId, position?, data?}`. `nodeId` must be unique within the map; mint a uuid yourself, since reusing one returns `409`. `data` may carry `{messages, note, node_type, color}`, where `messages` is the node's content as a UIMessage array. The node is born structural (a draft); running it is a separate generative call. → `201` full node.
+**Create a node** — `POST /api/mindmaps/{mapId}/nodes` with `{nodeId, parentId, position?, data}`. `nodeId` must be unique within the map; mint a uuid yourself, since reusing one returns `409`. `data` carries `{node_type, messages?, note?, color?}`: `node_type` is required (`data`, `prompt` or `expand`, as **Create a map** describes), and `messages` is the node's content as a UIMessage array. The node is born structural (a draft); running it is a separate generative call. → `201` full node.
 
 ```bash
 mm /api/mindmaps/MAP_ID/nodes -X POST -d '{
