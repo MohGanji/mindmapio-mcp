@@ -74,7 +74,7 @@
           "maps"
         ],
         "summary": "Create a map from its root node",
-        "description": "Creates a map owned by the token's user from its root node, the way createNode creates a node, without a parent: the same `data` fields and the required `node_type`, and nothing is run. The map's title follows its root, as it does in the app; call renameMap to give it a name that stays. Build the rest of the map with createNode, or create a whole map in one call with importMap. Returns the new map's id and title.\n",
+        "description": "Creates a map owned by the token's user from its root node, the way createNode creates a node, without a parent: the same `data` fields and the required `node_type` (a root without one, or with an unknown one, is refused with a 400), and nothing is run. The map's title follows its root, as it does in the app; call renameMap to give it a name that stays. Build the rest of the map with createNode, or create a whole map in one call with importMap. Returns the new map's id and title.\n",
         "x-mcp": {
           "title": "Create a map",
           "readOnlyHint": false,
@@ -121,7 +121,7 @@
           "maps"
         ],
         "summary": "Create a whole map from a tree",
-        "description": "Creates a map owned by the token's user from a whole node tree in one call, in the map's own JSON format (`{rootId, nodes}`, the shape getMindmap returns in `data`). The map's title follows the tree's root; call renameMap to give it a name that stays. Nothing is run. Returns the new map's id and title.\n",
+        "description": "Creates a map owned by the token's user from a whole node tree in one call, in the map's own JSON format (`{rootId, nodes}`, the shape getMindmap returns in `data`). The map's title follows the tree's root; call renameMap to give it a name that stays. Every node names its `nodeType` (prompt, data or expand); a tree with a node that leaves it out, or names an unknown one, is refused whole with a 400 naming the node. Nothing is run. Returns the new map's id and title.\n",
         "x-mcp": {
           "title": "Import a map",
           "readOnlyHint": false,
@@ -633,7 +633,7 @@
           "nodes"
         ],
         "summary": "Create a node",
-        "description": "Creates a node under a resolvable parent with a client-minted id that must be unique within the map. The node is born structural (a `draft`); running a prompt node is a separate generative operation. Returns the full created node. Ownership is enforced.\n",
+        "description": "Creates a node under a resolvable parent with a client-minted id that must be unique within the map, and `node_type` is required (a node without one, or with an unknown one, is refused with a 400). The node is born structural (a `draft`); running a prompt node is a separate generative operation. Returns the full created node. Ownership is enforced.\n",
         "x-mcp": {
           "title": "Create a node",
           "readOnlyHint": false,
@@ -769,6 +769,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
@@ -1370,7 +1373,7 @@
           "data",
           "expand"
         ],
-        "description": "What the node is, required on every create. `prompt` is a question for the model: its text is the user's turn, and submitting the node writes the model's answer under it. `data` is content kept exactly as written (a note in the app): it is never run, and it is the type for facts, summaries, outlines and anything else that is already the answer. `expand` is a seed that auto-expand fans out into child prompts. A node created without a type, or with any other value, is refused with a 400.\n"
+        "description": "What the node is. `prompt` is a question for the model: its text is the user's turn, and submitting the node writes the model's answer under it. `data` is content kept exactly as written (a note in the app): it is never run, and it is the type for facts, summaries, outlines and anything else that is already the answer. `expand` is a seed that auto-expand fans out into child prompts.\n"
       },
       "CreateNodeRequest": {
         "type": "object",
@@ -1782,7 +1785,8 @@
         },
         "required": [
           "id",
-          "children"
+          "children",
+          "nodeType"
         ]
       },
       "SubtreeNode": {
