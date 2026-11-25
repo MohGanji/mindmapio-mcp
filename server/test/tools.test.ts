@@ -298,6 +298,28 @@ describe("send_feedback wiring", () => {
   });
 });
 
+// A node's type is required on every create (mindmap.io refuses one without):
+// a missing type used to become a prompt draft where a note was meant.
+describe("node type", () => {
+  const types = (loadSpec() as any).components.schemas.NodeType;
+
+  it("is required, and limited to the document's types, on both create tools", () => {
+    for (const name of ["create_map", "create_node"]) {
+      const schema = z.object(tool(name).inputSchema);
+      const base = name === "create_node" ? { mapId: "m1", parentId: "r" } : {};
+      expect(schema.safeParse(base).success).toBe(false);
+      expect(schema.safeParse({ ...base, nodeType: "note" }).success).toBe(false);
+      for (const t of types.enum) expect(schema.safeParse({ ...base, nodeType: t }).success).toBe(true);
+    }
+  });
+
+  it("explains each type in the document's own words", () => {
+    for (const name of ["create_map", "create_node", "update_node"]) {
+      expect(tool(name).inputSchema.nodeType.description).toBe(types.description.trim());
+    }
+  });
+});
+
 describe("create_node wiring", () => {
   it("uses the supplied node id and maps node fields into data", async () => {
     const client = fakeClient();
@@ -324,7 +346,7 @@ describe("create_node wiring", () => {
 
   it("mints a uuid when no node id is supplied", async () => {
     const client = fakeClient();
-    await tool("create_node").handler(client, { mapId: "m1", parentId: "r" });
+    await tool("create_node").handler(client, { mapId: "m1", parentId: "r", nodeType: "data" });
     const arg = (client.createNode as any).mock.calls[0][1];
     expect(arg.nodeId).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,

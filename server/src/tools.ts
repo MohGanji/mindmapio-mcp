@@ -112,6 +112,17 @@ const NODE_COLORS = [
 ] as const;
 
 /**
+ * A node's type, required on every create. The values and what each one means
+ * are read from `NodeType` in the vendored OpenAPI document, so this tool, the
+ * hosted tools and mindmap.io's own agent explain them in the same words.
+ */
+const nodeTypeDoc = (loadSpec() as any)?.components?.schemas?.NodeType;
+if (!Array.isArray(nodeTypeDoc?.enum) || typeof nodeTypeDoc?.description !== "string") {
+  throw new Error("server/spec/openapi.json: NodeType needs an enum and a description.");
+}
+const nodeType = z.enum(nodeTypeDoc.enum as [string, ...string[]]).describe(nodeTypeDoc.description.trim());
+
+/**
  * A node's card tint (mindmap.io#587). Nullable on purpose: `null` is how the
  * API is told to clear a color, and it has to reach the request rather than be
  * compacted away like a field the caller simply left out.
@@ -194,7 +205,7 @@ function wiring(): ToolWiring[] {
           .optional()
           .describe("The root's content as a UIMessage array. The map's title follows it."),
         note: z.string().optional().describe("The root's note."),
-        nodeType: z.string().optional().describe("The root's type (e.g. data, prompt, expand)."),
+        nodeType,
         color,
         // The two arguments create_map took before ADR 0042. The SDK strips
         // unknown arguments, so without these an old call would quietly make a
@@ -333,7 +344,7 @@ function wiring(): ToolWiring[] {
           .optional()
           .describe("Initial node content as a UIMessage array (a data/note node's body is a user message too)."),
         note: z.string().optional().describe("Initial node note."),
-        nodeType: z.string().optional().describe("The node's type (e.g. prompt, data, expand)."),
+        nodeType,
         color,
       },
       handler: (client, args) => {
@@ -360,7 +371,7 @@ function wiring(): ToolWiring[] {
         nodeId,
         messages: messages.optional().describe("Replace the node's content as a UIMessage array."),
         note: z.string().optional(),
-        nodeType: z.string().optional().describe("Set or rotate the node's type."),
+        nodeType: nodeType.optional().describe(nodeType.description!),
         isCollapsed: z.boolean().optional(),
         modelProvider: z.string().optional(),
         modelId: z.string().optional(),

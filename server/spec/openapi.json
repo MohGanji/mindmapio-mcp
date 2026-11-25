@@ -74,7 +74,7 @@
           "maps"
         ],
         "summary": "Create a map from its root node",
-        "description": "Creates a map owned by the token's user from its root node, the way createNode creates a node, without a parent: the same `data` fields and defaults (a `prompt` draft unless `node_type` says otherwise), and nothing is run. The map's title follows its root, as it does in the app; call renameMap to give it a name that stays. Build the rest of the map with createNode, or create a whole map in one call with importMap. Returns the new map's id and title.\n",
+        "description": "Creates a map owned by the token's user from its root node, the way createNode creates a node, without a parent: the same `data` fields and the required `node_type`, and nothing is run. The map's title follows its root, as it does in the app; call renameMap to give it a name that stays. Build the rest of the map with createNode, or create a whole map in one call with importMap. Returns the new map's id and title.\n",
         "x-mcp": {
           "title": "Create a map",
           "readOnlyHint": false,
@@ -1295,11 +1295,14 @@
           "data": {
             "$ref": "#/components/schemas/NodeContent"
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "ImportMapRequest": {
         "type": "object",
-        "description": "A whole tree. There is no title: it follows the tree's root.\n",
+        "description": "A whole tree. There is no title: it follows the tree's root. Every node names its `nodeType` (prompt, data or expand, as NodeType describes); a tree with a node that leaves it out is refused whole, naming the node.\n",
         "properties": {
           "kind": {
             "type": "string",
@@ -1350,13 +1353,24 @@
             "description": "Legacy content field. Still accepted (the server derives the messages user turn from it) but deprecated in favor of `messages`.\n"
           },
           "node_type": {
-            "type": "string",
-            "description": "The node's type (e.g. prompt, data, expand)."
+            "$ref": "#/components/schemas/NodeType"
           },
           "color": {
             "$ref": "#/components/schemas/NodeColorWrite"
           }
-        }
+        },
+        "required": [
+          "node_type"
+        ]
+      },
+      "NodeType": {
+        "type": "string",
+        "enum": [
+          "prompt",
+          "data",
+          "expand"
+        ],
+        "description": "What the node is, required on every create. `prompt` is a question for the model: its text is the user's turn, and submitting the node writes the model's answer under it. `data` is content kept exactly as written (a note in the app): it is never run, and it is the type for facts, summaries, outlines and anything else that is already the answer. `expand` is a seed that auto-expand fans out into child prompts. A node created without a type, or with any other value, is refused with a 400.\n"
       },
       "CreateNodeRequest": {
         "type": "object",
@@ -1382,7 +1396,8 @@
         },
         "required": [
           "nodeId",
-          "parentId"
+          "parentId",
+          "data"
         ]
       },
       "UpdateNodeRequest": {
@@ -1405,8 +1420,7 @@
             "description": "Legacy content field. Still accepted but deprecated in favor of `messages`.\n"
           },
           "node_type": {
-            "type": "string",
-            "description": "Set or rotate the node's type."
+            "$ref": "#/components/schemas/NodeType"
           },
           "is_collapsed": {
             "type": "boolean"
@@ -1745,8 +1759,7 @@
             }
           },
           "nodeType": {
-            "type": "string",
-            "description": "The node's type (e.g. prompt, data, expand)."
+            "$ref": "#/components/schemas/NodeType"
           },
           "status": {
             "type": "string"
