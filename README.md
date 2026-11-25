@@ -104,10 +104,11 @@ Install the skills with one command:
 npx skills add MohGanji/mindmapio-mcp
 ```
 
-This works with Claude Code and other agents that support skills (browse them at [skills.sh](https://www.skills.sh)). Two skills ship here:
+This works with Claude Code and other agents that support skills (browse them at [skills.sh](https://www.skills.sh)). Three skills ship here:
 
 - [`skills/mindmapio/SKILL.md`](skills/mindmapio/SKILL.md) teaches the same actions over plain HTTP, no MCP client required.
 - [`skills/map-shaping/SKILL.md`](skills/map-shaping/SKILL.md) teaches how to shape a map: what belongs in the root node, when to branch versus append, and when to fan out.
+- [`skills/historical-timeline/SKILL.md`](skills/historical-timeline/SKILL.md) builds a historical-timeline map of any topic: a main lane of breakthroughs, side branches that merge back through tag links, and dead ends.
 
 Set your token first:
 
