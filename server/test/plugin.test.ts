@@ -54,6 +54,7 @@ describe("plugin manifests", () => {
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name);
     expect(skills).toContain("map-shaping");
+    expect(skills).toContain("historical-timeline");
 
     for (const skill of skills) {
       const body = readFileSync(join(repoRoot, "skills", skill, "SKILL.md"), "utf8");
