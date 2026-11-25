@@ -331,7 +331,10 @@ function wiring(): ToolWiring[] {
           .describe("Insert index among the parent's children; appended when omitted."),
         messages: messages
           .optional()
-          .describe("Initial node content as a UIMessage array (a data/note node's body is a user message too)."),
+          .describe(
+            "Initial node content as a UIMessage array (a data/note node's body is a user message too). " +
+              "A link [@Label](#node-<id>) in its text tags another node of the map: this node builds on that one.",
+          ),
         note: z.string().optional().describe("Initial node note."),
         nodeType: z.string().optional().describe("The node's type (e.g. prompt, data, expand)."),
         color,
